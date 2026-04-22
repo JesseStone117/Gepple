@@ -101,6 +101,24 @@
         90
       );
     }
+
+    playFinalShotWin() {
+      this.playTone({ frequency: 220, slideTo: 640, duration: 0.28, type: "sawtooth", gain: 0.1 });
+
+      window.setTimeout(
+        function firstFollowUp() {
+          this.playTone({ frequency: 520, slideTo: 960, duration: 0.28, type: "triangle", gain: 0.095 });
+        }.bind(this),
+        80
+      );
+
+      window.setTimeout(
+        function secondFollowUp() {
+          this.playTone({ frequency: 780, slideTo: 1240, duration: 0.34, type: "triangle", gain: 0.11 });
+        }.bind(this),
+        170
+      );
+    }
   }
 
   window.GeppleAudioManager = GeppleAudioManager;

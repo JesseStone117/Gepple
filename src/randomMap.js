@@ -1,8 +1,8 @@
 (function (globalScope) {
   const PEG_RADIUS = 16;
-  const TOTAL_PEGS = 42;
-  const ORANGE_COUNT = 12;
-  const GREEN_COUNT = 2;
+  const TOTAL_PEGS = 56;
+  const ORANGE_COUNT = 16;
+  const GREEN_COUNT = 3;
   const LAUNCH_Y = 94;
   const AIM_LEFT_EDGE = -0.14;
   const AIM_RIGHT_EDGE = -Math.PI + 0.32;
@@ -131,8 +131,8 @@
     const top = boardBounds.top + 26;
     const bottom = boardBounds.bottom - 94;
     const usableWidth = right - left;
-    const rows = 7;
-    const columns = 10;
+    const rows = 8;
+    const columns = 11;
     const xStep = usableWidth / (columns - 1);
     const yStep = (bottom - top) / (rows - 1);
 
@@ -177,42 +177,59 @@
     return points;
   }
 
+  function spread(start, end, count) {
+    if (count <= 1) {
+      return [start];
+    }
+
+    const values = [];
+    const step = (end - start) / (count - 1);
+
+    for (let index = 0; index < count; index += 1) {
+      values.push(Number((start + step * index).toFixed(3)));
+    }
+
+    return values;
+  }
+
   function getPresetRows(mapId) {
     if (mapId === "crown") {
       return [
-        { y: 0.2, xs: [0.2, 0.35, 0.5, 0.65, 0.8] },
-        { y: 0.29, xs: [0.15, 0.24, 0.33, 0.42, 0.5, 0.58, 0.67, 0.76, 0.85] },
-        { y: 0.38, xs: [0.18, 0.27, 0.36, 0.45, 0.55, 0.64, 0.73, 0.82] },
-        { y: 0.48, xs: [0.22, 0.32, 0.42, 0.5, 0.58, 0.68, 0.78] },
-        { y: 0.59, xs: [0.27, 0.38, 0.5, 0.62, 0.73] },
-        { y: 0.7, xs: [0.3, 0.4, 0.5, 0.6, 0.7] },
-        { y: 0.8, xs: [0.36, 0.5, 0.64] },
+        { y: 0.18, xs: spread(0.18, 0.82, 6) },
+        { y: 0.26, xs: spread(0.12, 0.88, 10) },
+        { y: 0.34, xs: spread(0.16, 0.84, 9) },
+        { y: 0.43, xs: spread(0.2, 0.8, 8) },
+        { y: 0.53, xs: spread(0.24, 0.76, 7) },
+        { y: 0.63, xs: spread(0.27, 0.73, 6) },
+        { y: 0.74, xs: spread(0.31, 0.69, 5) },
+        { y: 0.84, xs: spread(0.33, 0.67, 5) },
       ];
     }
 
     if (mapId === "heart") {
       return [
-        { y: 0.22, xs: [0.32, 0.4, 0.6, 0.68] },
-        { y: 0.3, xs: [0.24, 0.32, 0.4, 0.5, 0.6, 0.68, 0.76] },
-        { y: 0.38, xs: [0.18, 0.26, 0.34, 0.42, 0.5, 0.58, 0.66, 0.74, 0.82] },
-        { y: 0.48, xs: [0.22, 0.3, 0.38, 0.46, 0.54, 0.62, 0.7, 0.78] },
-        { y: 0.58, xs: [0.28, 0.36, 0.44, 0.52, 0.6, 0.68, 0.76] },
-        { y: 0.68, xs: [0.36, 0.44, 0.52, 0.6, 0.68] },
-        { y: 0.78, xs: [0.46, 0.56] },
+        { y: 0.2, xs: [0.28, 0.38, 0.5, 0.62, 0.72] },
+        { y: 0.28, xs: spread(0.2, 0.8, 8) },
+        { y: 0.36, xs: spread(0.14, 0.86, 10) },
+        { y: 0.45, xs: spread(0.18, 0.82, 10) },
+        { y: 0.54, xs: spread(0.24, 0.76, 8) },
+        { y: 0.64, xs: spread(0.3, 0.7, 7) },
+        { y: 0.75, xs: spread(0.38, 0.62, 5) },
+        { y: 0.84, xs: spread(0.46, 0.54, 3) },
       ];
     }
 
     if (mapId === "diamond") {
       return [
         { y: 0.22, xs: [0.5] },
-        { y: 0.3, xs: [0.38, 0.5, 0.62] },
-        { y: 0.38, xs: [0.3, 0.4, 0.5, 0.6, 0.7] },
-        { y: 0.46, xs: [0.22, 0.32, 0.42, 0.5, 0.58, 0.68, 0.78] },
-        { y: 0.54, xs: [0.14, 0.24, 0.34, 0.42, 0.5, 0.58, 0.66, 0.76, 0.86] },
-        { y: 0.58, xs: [0.5] },
-        { y: 0.62, xs: [0.22, 0.32, 0.42, 0.5, 0.58, 0.68, 0.78] },
-        { y: 0.7, xs: [0.3, 0.4, 0.5, 0.6, 0.7] },
-        { y: 0.78, xs: [0.38, 0.5, 0.62] },
+        { y: 0.28, xs: spread(0.4, 0.6, 3) },
+        { y: 0.34, xs: spread(0.3, 0.7, 5) },
+        { y: 0.4, xs: spread(0.22, 0.78, 7) },
+        { y: 0.47, xs: spread(0.14, 0.86, 9) },
+        { y: 0.54, xs: spread(0.1, 0.9, 11) },
+        { y: 0.62, xs: spread(0.14, 0.86, 9) },
+        { y: 0.7, xs: spread(0.22, 0.78, 7) },
+        { y: 0.78, xs: spread(0.4, 0.6, 3) },
         { y: 0.86, xs: [0.5] },
       ];
     }

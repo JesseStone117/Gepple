@@ -31,8 +31,12 @@
     abilityLines: [document.getElementById("ability-line-0"), document.getElementById("ability-line-1")],
     assignmentPills: [document.getElementById("assignment-pill-0"), document.getElementById("assignment-pill-1")],
     mapButtons: Array.from(document.querySelectorAll('[data-action="map-select"]')),
+    resultPanel: document.getElementById("result-panel"),
     winnerHeading: document.getElementById("winner-heading"),
     winnerSummary: document.getElementById("winner-summary"),
+    winnerPortrait: document.getElementById("winner-portrait"),
+    winnerBadge: document.getElementById("winner-badge"),
+    winnerFlair: document.getElementById("winner-flair"),
     resultReason: document.getElementById("result-reason"),
     scoreboard: document.getElementById("scoreboard"),
     toastStack: document.getElementById("toast-stack"),
@@ -48,6 +52,7 @@
   let lastFrameTime = performance.now();
   let lastScene = "";
   let isSystemMenuOpen = false;
+  let ignoreGameplayInputOnce = false;
 
   function isFullscreenSupported() {
     return Boolean(
@@ -109,6 +114,7 @@
 
   function startRound() {
     audioManager.unlock();
+    ignoreGameplayInputOnce = true;
     game.startRound(buildPlayerConfigs(), {
       mapId: selectedMapId,
     });
@@ -612,22 +618,36 @@
 
   function renderRoundOver(uiState) {
     const winner = uiState.players[uiState.winnerIndex];
+    const winnerCharacter = window.GeppleCharacterLookup[winner.characterId];
+    const finalShotWin = Boolean(uiState.finalShotWin);
 
-    dom.resultReason.textContent = uiState.roundReason;
+    dom.resultPanel.classList.toggle("is-final-shot", finalShotWin);
+    dom.resultReason.textContent = finalShotWin ? "Last Shot Heroics" : uiState.roundReason;
     dom.winnerHeading.textContent = winner.name + " Wins";
-    dom.winnerSummary.textContent =
-      "Final orange clears: " +
-      winner.orangeHits +
-      ". Final score: " +
-      winner.score.toLocaleString() +
-      ".";
+    dom.winnerPortrait.style.backgroundImage =
+      "url('" + winnerCharacter.portraitPath + "'), " + winnerCharacter.portraitGradient;
+    dom.winnerPortrait.style.backgroundColor = winnerCharacter.accentSoft;
+    dom.winnerBadge.textContent = finalShotWin ? "Last Ball Legend" : winnerCharacter.abilityName;
+    dom.winnerFlair.textContent = finalShotWin
+      ? winnerCharacter.name + " closed the match on the final launch."
+      : winnerCharacter.name + " claims the couch crown in style.";
+    dom.winnerSummary.textContent = finalShotWin
+      ? "No reserve balls left. Winning finish: " +
+        uiState.roundReason +
+        ". Final score: " +
+        winner.score.toLocaleString() +
+        "."
+      : "Final orange clears: " + winner.orangeHits + ". Final score: " + winner.score.toLocaleString() + ".";
 
     dom.scoreboard.innerHTML = uiState.players
       .map(function renderRow(player) {
         const character = window.GeppleCharacterLookup[player.characterId];
+        const winnerClass = player.index === uiState.winnerIndex ? " is-winner" : "";
 
         return (
-          '<article class="score-row">' +
+          '<article class="score-row' +
+          winnerClass +
+          '">' +
           "<div><strong>" +
           player.name +
           "</strong><p>" +
@@ -728,6 +748,15 @@
 
     handleCharacterSelectShortcuts();
     handleMenuInput(playerOneMenuInput);
+
+    if (ignoreGameplayInputOnce && game.scene === "playing") {
+      ignoreGameplayInputOnce = false;
+      game.update(deltaTime, [null, null]);
+      syncScreens();
+      requestAnimationFrame(frame);
+      return;
+    }
+
     game.update(deltaTime, playerInputs);
     syncScreens();
 

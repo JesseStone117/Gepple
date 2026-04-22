@@ -151,10 +151,21 @@
             </section>
 
             <section id="round-over-screen" class="screen screen--round-over is-hidden">
-              <div class="glass-panel result-panel">
+              <div class="glass-panel result-panel" id="result-panel">
                 <p class="eyebrow" id="result-reason">Round Complete</p>
-                <h2 id="winner-heading">Player 1 Wins</h2>
-                <p id="winner-summary">Highest score takes the couch crown.</p>
+
+                <div class="winner-showcase">
+                  <div class="winner-portrait-frame">
+                    <div class="winner-portrait portrait-art" id="winner-portrait"></div>
+                  </div>
+
+                  <div class="winner-copy">
+                    <p class="winner-badge" id="winner-badge">Couch Crown Claimed</p>
+                    <h2 id="winner-heading">Player 1 Wins</h2>
+                    <p id="winner-summary">Highest score takes the couch crown.</p>
+                    <p class="winner-flair" id="winner-flair">Luna Hare steals the spotlight.</p>
+                  </div>
+                </div>
 
                 <div class="scoreboard" id="scoreboard"></div>
 

@@ -81,6 +81,7 @@
       this.mapName = "Random";
       this.roundReason = "";
       this.winnerIndex = 0;
+      this.finalShotWin = false;
 
       this.bucket = {
         x: this.boardBounds.centerX,
@@ -123,6 +124,7 @@
       this.mapId = roundOptions && roundOptions.mapId ? roundOptions.mapId : "random";
       this.roundReason = "";
       this.winnerIndex = 0;
+      this.finalShotWin = false;
       this.bucket.x = this.boardBounds.centerX;
       this.bucket.direction = 1;
 
@@ -702,6 +704,9 @@
       this.turnState = "complete";
       this.roundReason = reason;
       this.activeBalls = [];
+      this.finalShotWin = !this.players.some(function hasReserveBalls(player) {
+        return player.ballsRemaining > 0;
+      });
 
       let bestScore = -Infinity;
       let winnerIndex = 0;
@@ -714,6 +719,13 @@
       }
 
       this.winnerIndex = winnerIndex;
+
+      if (this.finalShotWin) {
+        this.audioManager.playFinalShotWin();
+        this.pushToast(this.players[winnerIndex].name + " steals the round on the last ball!");
+        return;
+      }
+
       this.audioManager.playRoundWin();
       this.pushToast(this.players[winnerIndex].name + " takes the round.");
     }
@@ -727,6 +739,7 @@
         turnState: this.turnState,
         roundReason: this.roundReason,
         winnerIndex: this.winnerIndex,
+        finalShotWin: this.finalShotWin,
         toasts: this.toasts,
       };
     }
