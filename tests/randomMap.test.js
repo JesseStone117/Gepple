@@ -50,6 +50,26 @@ runTest("random layouts never place pegs above the safe aim window", function ()
   }
 });
 
+runTest("every layout keeps a safe amount of space between pegs", function () {
+  for (const option of GeppleMap.getMapOptions()) {
+    const seedLimit = option.id === "random" ? 120 : 1;
+
+    for (let seed = 1; seed <= seedLimit; seed += 1) {
+      const map = GeppleMap.generateMap(boardBounds, {
+        seed,
+        mapId: option.id,
+      });
+      const spacingViolations = GeppleMap.findSpacingViolations(map.pegs);
+
+      assert.equal(
+        spacingViolations.length,
+        0,
+        option.id + " placed pegs too close together on seed " + seed
+      );
+    }
+  }
+});
+
 runTest("every selectable layout keeps the expected peg counts and color counts", function () {
   for (const option of GeppleMap.getMapOptions()) {
     const map = GeppleMap.generateMap(boardBounds, {

@@ -1,5 +1,5 @@
 (function (globalScope) {
-  const PEG_RADIUS = 12;
+  const PEG_RADIUS = 10;
   const TOTAL_PEGS = 96;
   const ORANGE_COUNT = 25;
   const GREEN_COUNT = 2;
@@ -7,6 +7,7 @@
   const AIM_LEFT_EDGE = -0.14;
   const AIM_RIGHT_EDGE = -Math.PI + 0.32;
   const AIMABLE_BUFFER = PEG_RADIUS + 8;
+  const MIN_PEG_SPACING = 36;
 
   const MAP_OPTIONS = [
     {
@@ -124,6 +125,69 @@
     });
   }
 
+  function getPegDistance(firstPeg, secondPeg) {
+    const dx = firstPeg.x - secondPeg.x;
+    const dy = firstPeg.y - secondPeg.y;
+
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function findSpacingViolations(pegs, minimumDistance) {
+    const requiredDistance = minimumDistance || MIN_PEG_SPACING;
+    const violations = [];
+
+    for (let firstIndex = 0; firstIndex < pegs.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < pegs.length; secondIndex += 1) {
+        const distance = getPegDistance(pegs[firstIndex], pegs[secondIndex]);
+
+        if (distance >= requiredDistance) {
+          continue;
+        }
+
+        violations.push({
+          firstIndex,
+          secondIndex,
+          distance,
+        });
+      }
+    }
+
+    return violations;
+  }
+
+  function isFarEnoughFromPlacedPegs(candidate, placedPegs, minimumDistance) {
+    for (const placedPeg of placedPegs) {
+      if (getPegDistance(candidate, placedPeg) < minimumDistance) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function pickWellSpacedPegs(candidates, random, minimumDistance) {
+    const requiredDistance = minimumDistance || MIN_PEG_SPACING;
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const placedPegs = [];
+      const shuffledCandidates = shuffle(candidates, random);
+
+      for (const candidate of shuffledCandidates) {
+        if (!isFarEnoughFromPlacedPegs(candidate, placedPegs, requiredDistance)) {
+          continue;
+        }
+
+        placedPegs.push(candidate);
+
+        if (placedPegs.length === TOTAL_PEGS) {
+          return placedPegs;
+        }
+      }
+    }
+
+    throw new Error("Random map generator could not keep the pegs spaced out enough.");
+  }
+
   function createPointsFromRows(rows) {
     const points = [];
 
@@ -163,7 +227,7 @@
       { y: 0.47, xs: spread(0.14, 0.86, 12) },
       { y: 0.56, xs: [0.18, 0.24, 0.3, 0.36, 0.42, 0.48, 0.52, 0.58, 0.64, 0.7, 0.76, 0.82] },
       { y: 0.66, xs: [0.16, 0.24, 0.32, 0.4, 0.46, 0.54, 0.6, 0.68, 0.76, 0.84] },
-      { y: 0.75, xs: [0.18, 0.28, 0.38, 0.46, 0.54, 0.62, 0.72, 0.82, 0.26, 0.74] },
+      { y: 0.75, xs: [0.18, 0.22, 0.32, 0.4, 0.46, 0.54, 0.6, 0.68, 0.78, 0.82] },
       { y: 0.84, xs: [0.24, 0.34, 0.46, 0.54, 0.66, 0.76] },
       { y: 0.9, xs: [0.4, 0.46, 0.54, 0.6] },
     ];
@@ -207,24 +271,25 @@
     const right = boardBounds.right - innerPadding;
     const top = boardBounds.top + 18;
     const bottom = boardBounds.bottom - 86;
-    const rows = 9;
-    const columns = 13;
+    const rows = 10;
+    const columns = 14;
     const xStep = (right - left) / (columns - 1);
     const yStep = (bottom - top) / (rows - 1);
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const offset = row % 2 === 0 ? 0 : xStep / 2;
-        const x = left + column * xStep + offset + (random() - 0.5) * 14;
-        const y = top + row * yStep + (random() - 0.5) * 12;
+        const x = left + column * xStep + offset + (random() - 0.5) * 8;
+        const rawY = top + row * yStep + (random() - 0.5) * 8;
 
         if (x < left || x > right) {
           continue;
         }
 
+        const minimumY = getMinimumAimableY(boardBounds, x);
         const candidate = liftPegIntoAimWindow(boardBounds, {
           x,
-          y: Math.max(top, Math.min(bottom, y)),
+          y: Math.max(minimumY, Math.max(top, Math.min(bottom, rawY))),
         });
 
         if (candidate.y > bottom) {
@@ -235,7 +300,7 @@
       }
     }
 
-    return shuffle(candidates, random).slice(0, TOTAL_PEGS);
+    return pickWellSpacedPegs(candidates, random, MIN_PEG_SPACING);
   }
 
   function normalizePatternPoint(boardBounds, point) {
@@ -337,6 +402,7 @@
     const baseLayout = createBaseLayout(boardBounds, option.id, request.seed);
     const decorationRandom = createRandom(getDecorationSeed(request.seed, option.id));
     const invalidPegs = findPegsAboveAimWindow(boardBounds, baseLayout);
+    const spacingViolations = findSpacingViolations(baseLayout, MIN_PEG_SPACING);
 
     if (baseLayout.length !== TOTAL_PEGS) {
       throw new Error("Map layout did not produce " + TOTAL_PEGS + " pegs.");
@@ -344,6 +410,10 @@
 
     if (invalidPegs.length > 0) {
       throw new Error("Map layout spawned pegs above the safe aim window.");
+    }
+
+    if (spacingViolations.length > 0) {
+      throw new Error("Map layout placed pegs too close together.");
     }
 
     return {
@@ -363,6 +433,7 @@
     },
     getMinimumAimableY,
     findPegsAboveAimWindow,
+    findSpacingViolations,
   };
 
   globalScope.GeppleMap = api;
