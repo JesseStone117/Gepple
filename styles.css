@@ -378,6 +378,13 @@ h3 {
   outline-offset: 3px;
 }
 
+.menu-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
 .menu-button--primary {
   background: linear-gradient(135deg, rgba(255, 226, 122, 0.95), rgba(255, 143, 90, 0.92));
   color: #1d1820;

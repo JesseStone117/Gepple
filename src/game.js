@@ -192,7 +192,7 @@
         return false;
       }
 
-      return activePlayer.abilityCharged && !activePlayer.abilityUsedThisShot;
+      return activePlayer.abilityCharged && this.turnState === "aiming";
     }
 
     pushToast(text) {
@@ -259,7 +259,7 @@
       }
 
       if (this.turnState === "in-flight") {
-        this.updateBalls(deltaTime, playerInputs[this.activePlayerIndex]);
+        this.updateBalls(deltaTime);
       }
 
       if (this.turnState === "switching") {
@@ -278,7 +278,7 @@
         return;
       }
 
-      this.turnAim += input.aimX * deltaTime * 2.4;
+      this.turnAim -= input.aimX * deltaTime * 2.4;
       this.turnAim = clamp(this.turnAim, -Math.PI + 0.32, -0.14);
 
       if (!input.launchPressed) {
@@ -291,15 +291,16 @@
         return;
       }
 
+      const shouldAutoUseAbility = activePlayer.abilityCharged;
+
       activePlayer.ballsRemaining -= 1;
       activePlayer.currentShotHits = 0;
-      activePlayer.abilityCharged = false;
       activePlayer.abilityUsedThisShot = false;
+      activePlayer.abilityCharged = false;
 
       const character = window.GeppleCharacterLookup[activePlayer.characterId];
       const launchVector = this.getLaunchVector(BALL_SPEED);
-
-      this.activeBalls.push({
+      const primaryBall = {
         x: this.boardBounds.centerX,
         y: LAUNCH_Y,
         radius: BALL_RADIUS,
@@ -310,18 +311,21 @@
         color: character.ballColor,
         homingTimer: 0,
         scoreScale: 1,
-      });
+        shockwaveReady: false,
+      };
+
+      this.activeBalls.push(primaryBall);
+
+      if (shouldAutoUseAbility) {
+        this.activateStoredAbility(activePlayer, primaryBall);
+      }
 
       this.turnState = "in-flight";
       this.audioManager.playLaunch();
       this.pushToast(activePlayer.name + " launched " + character.name + "'s shot.");
     }
 
-    updateBalls(deltaTime, activeInput) {
-      if (activeInput && activeInput.abilityPressed) {
-        this.useAbility();
-      }
-
+    updateBalls(deltaTime) {
       for (let index = this.activeBalls.length - 1; index >= 0; index -= 1) {
         const ball = this.activeBalls[index];
 
@@ -505,35 +509,35 @@
       this.screenFlash = Math.min(1, this.screenFlash + 0.1);
       this.cameraShake = Math.min(1, this.cameraShake + 0.12);
       this.spawnBurst(peg.x, peg.y, particleColor, peg.type === "orange" ? 18 : 12, 190);
+
+      if (ball.shockwaveReady) {
+        ball.shockwaveReady = false;
+        this.resolveShockwave(ball, 116);
+        ball.speedY = Math.min(ball.speedY, -320);
+        this.spawnBurst(ball.x, ball.y, "#ff8f5a", 22, 220);
+      }
     }
 
-    useAbility() {
-      const player = this.getActivePlayer();
+    activateStoredAbility(player, primaryBall) {
+      const character = window.GeppleCharacterLookup[player.characterId];
 
-      if (!player || !player.abilityCharged || player.abilityUsedThisShot || this.activeBalls.length === 0) {
+      player.abilityUsedThisShot = true;
+
+      if (character.id === "luna-hare") {
+        primaryBall.homingTimer = 1.9;
+
+        this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 20, 180);
+        this.pushToast(character.abilityName + " is bending the next shot into the orange cluster.");
+        this.audioManager.playAbilityUse();
         return;
       }
 
-      const character = window.GeppleCharacterLookup[player.characterId];
-      const primaryBall = this.activeBalls[0];
-
-      player.abilityUsedThisShot = true;
-      player.abilityCharged = false;
-
-      if (character.id === "luna-hare") {
-        for (const ball of this.activeBalls) {
-          ball.homingTimer = 1.9;
-        }
-
-        this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 20, 180);
-        this.pushToast(character.abilityName + " is bending the shot into the orange cluster.");
-      }
-
       if (character.id === "tempo-fox") {
-        this.resolveShockwave(primaryBall, 116);
-        primaryBall.speedY = Math.min(primaryBall.speedY, -340);
+        primaryBall.shockwaveReady = true;
         this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 22, 220);
-        this.pushToast(character.abilityName + " rattled the nearby pegs.");
+        this.pushToast(character.abilityName + " is primed for the first peg hit.");
+        this.audioManager.playAbilityUse();
+        return;
       }
 
       if (character.id === "pixel-goat") {
@@ -553,10 +557,10 @@
 
         this.activeBalls.push(cloneA, cloneB);
         this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 24, 200);
-        this.pushToast(character.abilityName + " split the shot into a wider spread.");
+        this.pushToast(character.abilityName + " split the next shot into a wider spread.");
+        this.audioManager.playAbilityUse();
+        return;
       }
-
-      this.audioManager.playAbilityUse();
     }
 
     resolveShockwave(ball, radius) {
@@ -633,6 +637,12 @@
     advanceTurn() {
       if (this.scene !== "playing") {
         return;
+      }
+
+      const currentPlayer = this.players[this.activePlayerIndex];
+
+      if (currentPlayer) {
+        currentPlayer.abilityUsedThisShot = false;
       }
 
       const nextIndex = this.findNextPlayerIndex();

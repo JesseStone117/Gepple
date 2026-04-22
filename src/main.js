@@ -46,6 +46,18 @@
   let lastScene = "";
   let isSystemMenuOpen = false;
 
+  function isFullscreenSupported() {
+    return Boolean(
+      document.fullscreenEnabled ||
+      document.documentElement.requestFullscreen ||
+      document.exitFullscreen
+    );
+  }
+
+  function isFullscreenActive() {
+    return Boolean(document.fullscreenElement);
+  }
+
   function resizeStage() {
     const scale = Math.max(0.1, Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT));
 
@@ -92,8 +104,10 @@
   }
 
   function focusFirstMenuButton() {
-    if (dom.startGameButton) {
-      dom.startGameButton.focus({ preventScroll: true });
+    const defaultMenuButton = document.querySelector('[data-action="character-prev"][data-player="0"]');
+
+    if (defaultMenuButton) {
+      defaultMenuButton.focus({ preventScroll: true });
     }
   }
 
@@ -155,55 +169,151 @@
 
   function getVisibleMenuButtons() {
     if (isSystemMenuOpen) {
-      return Array.from(document.querySelectorAll("#system-menu-screen:not(.is-hidden) .menu-button"));
+      return Array.from(document.querySelectorAll("#system-menu-screen:not(.is-hidden) .menu-button:not(:disabled)"));
     }
 
-    let selector = "#menu-screen:not(.is-hidden) .menu-button";
+    let selector = "#menu-screen:not(.is-hidden) .menu-button:not(:disabled)";
 
     if (game.scene === "round-over") {
-      selector = "#round-over-screen:not(.is-hidden) .menu-button";
+      selector = "#round-over-screen:not(.is-hidden) .menu-button:not(:disabled)";
     }
 
     return Array.from(document.querySelectorAll(selector));
   }
 
+  function getFocusDirection(menuInput) {
+    if (menuInput.navLeftPressed) {
+      return "left";
+    }
+
+    if (menuInput.navRightPressed) {
+      return "right";
+    }
+
+    if (menuInput.navUpPressed) {
+      return "up";
+    }
+
+    if (menuInput.navDownPressed) {
+      return "down";
+    }
+
+    return "";
+  }
+
+  function isCandidateInDirection(direction, dx, dy) {
+    if (direction === "left") {
+      return dx < -8;
+    }
+
+    if (direction === "right") {
+      return dx > 8;
+    }
+
+    if (direction === "up") {
+      return dy < -8;
+    }
+
+    if (direction === "down") {
+      return dy > 8;
+    }
+
+    return false;
+  }
+
+  function getDirectionalScore(direction, dx, dy, wrapAround) {
+    const primary = direction === "left" || direction === "right" ? Math.abs(dx) : Math.abs(dy);
+    const secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
+
+    if (wrapAround) {
+      return primary * 2 + secondary;
+    }
+
+    return primary + secondary * 0.45;
+  }
+
+  function findNextFocusButton(buttons, currentButton, direction) {
+    const currentRect = currentButton.getBoundingClientRect();
+    const currentCenterX = currentRect.left + currentRect.width / 2;
+    const currentCenterY = currentRect.top + currentRect.height / 2;
+
+    function pickCandidate(wrapAround) {
+      let bestButton = null;
+      let bestScore = Infinity;
+
+      for (const button of buttons) {
+        if (button === currentButton) {
+          continue;
+        }
+
+        const rect = button.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = centerX - currentCenterX;
+        const dy = centerY - currentCenterY;
+
+        if (!wrapAround && !isCandidateInDirection(direction, dx, dy)) {
+          continue;
+        }
+
+        const score = getDirectionalScore(direction, dx, dy, wrapAround);
+
+        if (score >= bestScore) {
+          continue;
+        }
+
+        bestScore = score;
+        bestButton = button;
+      }
+
+      return bestButton;
+    }
+
+    return pickCandidate(false) || pickCandidate(true);
+  }
+
   function moveFocus(menuInput) {
     const buttons = getVisibleMenuButtons();
+    const direction = getFocusDirection(menuInput);
 
-    if (buttons.length === 0) {
+    if (buttons.length === 0 || !direction) {
       return;
     }
 
-    const currentIndex = buttons.indexOf(document.activeElement);
-    let nextIndex = currentIndex === -1 ? 0 : currentIndex;
+    const currentButton = buttons.includes(document.activeElement) ? document.activeElement : null;
 
-    if (menuInput.navLeftPressed || menuInput.navUpPressed) {
-      nextIndex -= 1;
+    if (!currentButton) {
+      buttons[0].focus({ preventScroll: true });
+      return;
     }
 
-    if (menuInput.navRightPressed || menuInput.navDownPressed) {
-      nextIndex += 1;
+    const nextButton = findNextFocusButton(buttons, currentButton, direction);
+
+    if (!nextButton) {
+      return;
     }
 
-    if (nextIndex < 0) {
-      nextIndex = buttons.length - 1;
-    }
-
-    if (nextIndex >= buttons.length) {
-      nextIndex = 0;
-    }
-
-    buttons[nextIndex].focus({ preventScroll: true });
+    nextButton.focus({ preventScroll: true });
   }
 
   function renderSystemMenu() {
     const isPlaying = game.scene === "playing";
+    const fullscreenSupported = isFullscreenSupported();
+    const fullscreenActive = isFullscreenActive();
 
     dom.systemMenuHeading.textContent = isPlaying ? "Game Menu" : "System Menu";
     dom.systemMenuCopy.textContent = isPlaying
       ? "The board is paused. Leave full screen, or exit Gepple."
       : "Leave full screen, or exit Gepple.";
     dom.systemResumeButton.textContent = isPlaying ? "Resume Game" : "Close Menu";
+    dom.systemExitFullscreenButton.disabled = !fullscreenSupported;
+
+    if (!fullscreenSupported) {
+      dom.systemExitFullscreenButton.textContent = "Full Screen Unavailable";
+      return;
+    }
+
+    dom.systemExitFullscreenButton.textContent = fullscreenActive ? "Exit Full Screen" : "Enter Full Screen";
   }
 
   function openSystemMenu() {
@@ -242,17 +352,32 @@
     }
   }
 
-  async function exitFullscreenMode() {
-    if (!document.fullscreenElement || !document.exitFullscreen) {
-      game.pushToast("Already out of full screen.");
+  function refreshSystemMenuForFullscreenChange() {
+    if (!isSystemMenuOpen) {
+      return;
+    }
+
+    renderSystemMenu();
+  }
+
+  async function toggleFullscreenMode() {
+    if (!isFullscreenSupported()) {
+      game.pushToast("Full screen is unavailable here.");
       return;
     }
 
     try {
-      await document.exitFullscreen();
-      game.pushToast("Exited full screen.");
+      if (isFullscreenActive()) {
+        await document.exitFullscreen();
+        game.pushToast("Exited full screen.");
+      } else {
+        await document.documentElement.requestFullscreen();
+        game.pushToast("Entered full screen.");
+      }
+
+      renderSystemMenu();
     } catch (error) {
-      game.pushToast("Full screen could not be exited.");
+      game.pushToast("Full screen could not be changed.");
     }
   }
 
@@ -358,14 +483,13 @@
       return;
     }
 
-    const activeAbilityReady = activePlayer.abilityCharged && !activePlayer.abilityUsedThisShot;
+    const activeAbilityReady = activePlayer.abilityCharged && uiState.turnState === "aiming";
 
     dom.turnIndicator.textContent = activePlayer.name;
     dom.turnBanner.classList.toggle("is-ability-ready", activeAbilityReady);
 
     if (activeAbilityReady) {
-      dom.roundSubtitle.textContent =
-        "Orange pegs left: " + uiState.orangeRemaining + ". Special ready. Press X or RB now.";
+      dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Power stores for the next shot.";
     } else if (uiState.turnState === "aiming") {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Line up the launch.";
     } else {
@@ -377,22 +501,22 @@
       const character = window.GeppleCharacterLookup[player.characterId];
       const isActive = playerIndex === uiState.activePlayerIndex;
       const assignmentLabel = controllerManager.getAssignmentLabel(playerIndex);
-      const abilityReady = isActive && player.abilityCharged && !player.abilityUsedThisShot;
+      const abilityReady = player.abilityCharged;
       let abilityStatus = "Waiting for green peg";
       let abilityStatusClass = "status-pill status-pill--idle";
 
       if (abilityReady) {
-        abilityStatus = "Ready - Press X / RB";
+        abilityStatus = isActive && uiState.turnState === "aiming" ? "Auto on next shot" : "Stored for next shot";
         abilityStatusClass = "status-pill status-pill--ready";
       }
 
-      if (player.abilityUsedThisShot) {
-        abilityStatus = "Spent this turn";
+      if (!abilityReady && player.abilityUsedThisShot) {
+        abilityStatus = "Spent this shot";
         abilityStatusClass = "status-pill status-pill--spent";
       }
 
       dom.hudPlayers[playerIndex].classList.toggle("is-active", isActive);
-      dom.hudPlayers[playerIndex].classList.toggle("is-ready", abilityReady);
+      dom.hudPlayers[playerIndex].classList.toggle("is-ready", abilityReady && isActive && uiState.turnState === "aiming");
       dom.hudPlayers[playerIndex].innerHTML =
         '<div class="hud-topline">' +
         '<span class="hud-label">' +
@@ -545,9 +669,7 @@
     handleConnectionEvents();
     const playerInputs = [controllerManager.getPlayerInput(0), controllerManager.getPlayerInput(1)];
     const playerOneMenuInput = controllerManager.getMenuInput();
-    const startPressed = playerInputs.some(function checkInput(input) {
-      return input && input.startPressed;
-    });
+    const startPressed = Boolean(playerOneMenuInput && playerOneMenuInput.startPressed);
 
     if (startPressed) {
       if (isSystemMenuOpen) {
@@ -589,10 +711,11 @@
   dom.playAgainButton.addEventListener("click", startRound);
   dom.backToMenuButton.addEventListener("click", backToMenu);
   dom.systemResumeButton.addEventListener("click", closeSystemMenu);
-  dom.systemExitFullscreenButton.addEventListener("click", exitFullscreenMode);
+  dom.systemExitFullscreenButton.addEventListener("click", toggleFullscreenMode);
   dom.systemExitGameButton.addEventListener("click", exitGame);
 
   window.addEventListener("resize", resizeStage);
+  document.addEventListener("fullscreenchange", refreshSystemMenuForFullscreenChange);
 
   resizeStage();
   renderMenu();
