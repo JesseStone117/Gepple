@@ -57,6 +57,8 @@
   let isSystemMenuOpen = false;
   let ignoreGameplayInputOnce = false;
   let menuLayoutFrame = 0;
+  let focusRetryFrame = 0;
+  let focusRetryTimeout = 0;
 
   function getViewportSize() {
     if (window.visualViewport) {
@@ -189,25 +191,76 @@
     backToMenu();
   }
 
-  function focusFirstMenuButton() {
-    const defaultMenuButton =
-      document.querySelector('[data-action="map-select"][data-map-id="' + selectedMapId + '"]') || dom.startGameButton;
-
-    if (defaultMenuButton) {
-      defaultMenuButton.focus({ preventScroll: true });
+  function cancelPendingFocusWork() {
+    if (focusRetryFrame) {
+      cancelAnimationFrame(focusRetryFrame);
+      focusRetryFrame = 0;
     }
+
+    if (focusRetryTimeout) {
+      clearTimeout(focusRetryTimeout);
+      focusRetryTimeout = 0;
+    }
+  }
+
+  function focusElementNow(element) {
+    if (!element || element.disabled) {
+      return false;
+    }
+
+    element.focus({ preventScroll: true });
+    return document.activeElement === element;
+  }
+
+  function scheduleStableFocus(getTarget, attemptsLeft) {
+    const target = getTarget();
+
+    if (!target) {
+      return;
+    }
+
+    if (focusElementNow(target) || attemptsLeft <= 0) {
+      return;
+    }
+
+    focusRetryFrame = requestAnimationFrame(function retryFocusOnNextFrame() {
+      focusRetryFrame = 0;
+      scheduleStableFocus(getTarget, attemptsLeft - 1);
+    });
+  }
+
+  function queueStableFocus(getTarget) {
+    cancelPendingFocusWork();
+    scheduleStableFocus(getTarget, 3);
+
+    focusRetryTimeout = window.setTimeout(function retryFocusAfterPaint() {
+      focusRetryTimeout = 0;
+      scheduleStableFocus(getTarget, 2);
+    }, 90);
+  }
+
+  function getDefaultMenuButton() {
+    return (
+      document.querySelector('[data-action="map-select"][data-map-id="' + selectedMapId + '"]') || dom.startGameButton
+    );
+  }
+
+  function getFirstEnabledSystemMenuButton() {
+    return dom.systemMenuScreen.querySelector(".menu-button:not(:disabled)");
+  }
+
+  function focusFirstMenuButton() {
+    queueStableFocus(getDefaultMenuButton);
   }
 
   function focusRoundOverButton() {
-    if (dom.playAgainButton) {
-      dom.playAgainButton.focus({ preventScroll: true });
-    }
+    queueStableFocus(function getPlayAgainButton() {
+      return dom.playAgainButton;
+    });
   }
 
   function focusSystemMenuButton() {
-    if (dom.systemResumeButton) {
-      dom.systemResumeButton.focus({ preventScroll: true });
-    }
+    queueStableFocus(getFirstEnabledSystemMenuButton);
   }
 
   function handleButtonAction(button) {
@@ -428,6 +481,10 @@
   }
 
   function openSystemMenu() {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     isSystemMenuOpen = true;
     renderSystemMenu();
     syncScreens();
@@ -435,6 +492,7 @@
   }
 
   function closeSystemMenu() {
+    cancelPendingFocusWork();
     isSystemMenuOpen = false;
     syncScreens();
 
@@ -449,6 +507,10 @@
   }
 
   function handleSystemMenuInput(menuInput) {
+    if (!dom.systemMenuScreen.contains(document.activeElement)) {
+      focusSystemMenuButton();
+    }
+
     if (menuInput.backPressed) {
       closeSystemMenu();
       return;
@@ -469,6 +531,7 @@
     }
 
     renderSystemMenu();
+    focusSystemMenuButton();
   }
 
   async function toggleFullscreenMode() {
