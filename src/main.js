@@ -9,11 +9,18 @@
     menuScreen: document.getElementById("menu-screen"),
     hudScreen: document.getElementById("hud-screen"),
     roundOverScreen: document.getElementById("round-over-screen"),
+    systemMenuScreen: document.getElementById("system-menu-screen"),
     controllerStatus: document.getElementById("controller-status"),
     startGameButton: document.getElementById("start-game-button"),
     swapControllersButton: document.getElementById("swap-controllers-button"),
     playAgainButton: document.getElementById("play-again-button"),
     backToMenuButton: document.getElementById("back-to-menu-button"),
+    systemResumeButton: document.getElementById("system-resume-button"),
+    systemExitFullscreenButton: document.getElementById("system-exit-fullscreen-button"),
+    systemExitGameButton: document.getElementById("system-exit-game-button"),
+    systemMenuHeading: document.getElementById("system-menu-heading"),
+    systemMenuCopy: document.getElementById("system-menu-copy"),
+    turnBanner: document.querySelector(".turn-banner"),
     turnIndicator: document.getElementById("turn-indicator"),
     roundSubtitle: document.getElementById("round-subtitle"),
     hudPlayers: [document.getElementById("hud-player-0"), document.getElementById("hud-player-1")],
@@ -37,6 +44,7 @@
   let selectedCharacterIndices = [0, 1];
   let lastFrameTime = performance.now();
   let lastScene = "";
+  let isSystemMenuOpen = false;
 
   function resizeStage() {
     const scale = Math.max(0.1, Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT));
@@ -85,7 +93,19 @@
 
   function focusFirstMenuButton() {
     if (dom.startGameButton) {
-      dom.startGameButton.focus();
+      dom.startGameButton.focus({ preventScroll: true });
+    }
+  }
+
+  function focusRoundOverButton() {
+    if (dom.playAgainButton) {
+      dom.playAgainButton.focus({ preventScroll: true });
+    }
+  }
+
+  function focusSystemMenuButton() {
+    if (dom.systemResumeButton) {
+      dom.systemResumeButton.focus({ preventScroll: true });
     }
   }
 
@@ -134,6 +154,10 @@
   }
 
   function getVisibleMenuButtons() {
+    if (isSystemMenuOpen) {
+      return Array.from(document.querySelectorAll("#system-menu-screen:not(.is-hidden) .menu-button"));
+    }
+
     let selector = "#menu-screen:not(.is-hidden) .menu-button";
 
     if (game.scene === "round-over") {
@@ -169,7 +193,102 @@
       nextIndex = 0;
     }
 
-    buttons[nextIndex].focus();
+    buttons[nextIndex].focus({ preventScroll: true });
+  }
+
+  function renderSystemMenu() {
+    const isPlaying = game.scene === "playing";
+
+    dom.systemMenuHeading.textContent = isPlaying ? "Game Menu" : "System Menu";
+    dom.systemMenuCopy.textContent = isPlaying
+      ? "The board is paused. Leave full screen, or exit Gepple."
+      : "Leave full screen, or exit Gepple.";
+    dom.systemResumeButton.textContent = isPlaying ? "Resume Game" : "Close Menu";
+  }
+
+  function openSystemMenu() {
+    isSystemMenuOpen = true;
+    renderSystemMenu();
+    syncScreens();
+    focusSystemMenuButton();
+  }
+
+  function closeSystemMenu() {
+    isSystemMenuOpen = false;
+    syncScreens();
+
+    if (game.scene === "round-over") {
+      focusRoundOverButton();
+      return;
+    }
+
+    if (game.scene === "menu") {
+      focusFirstMenuButton();
+    }
+  }
+
+  function handleSystemMenuInput(menuInput) {
+    if (menuInput.backPressed) {
+      closeSystemMenu();
+      return;
+    }
+
+    if (menuInput.confirmPressed && document.activeElement && document.activeElement.matches(".menu-button")) {
+      document.activeElement.click();
+    }
+
+    if (menuInput.navLeftPressed || menuInput.navRightPressed || menuInput.navUpPressed || menuInput.navDownPressed) {
+      moveFocus(menuInput);
+    }
+  }
+
+  async function exitFullscreenMode() {
+    if (!document.fullscreenElement || !document.exitFullscreen) {
+      game.pushToast("Already out of full screen.");
+      return;
+    }
+
+    try {
+      await document.exitFullscreen();
+      game.pushToast("Exited full screen.");
+    } catch (error) {
+      game.pushToast("Full screen could not be exited.");
+    }
+  }
+
+  async function exitGame() {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      try {
+        await document.exitFullscreen();
+      } catch (error) {
+      }
+    }
+
+    try {
+      window.close();
+    } catch (error) {
+    }
+
+    if (window.closed) {
+      return;
+    }
+
+    try {
+      window.open("", "_self");
+      window.close();
+    } catch (error) {
+    }
+
+    if (window.closed) {
+      return;
+    }
+
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    window.location.replace("about:blank");
   }
 
   function renderControllerStatus() {
@@ -239,9 +358,15 @@
       return;
     }
 
-    dom.turnIndicator.textContent = activePlayer.name;
+    const activeAbilityReady = activePlayer.abilityCharged && !activePlayer.abilityUsedThisShot;
 
-    if (uiState.turnState === "aiming") {
+    dom.turnIndicator.textContent = activePlayer.name;
+    dom.turnBanner.classList.toggle("is-ability-ready", activeAbilityReady);
+
+    if (activeAbilityReady) {
+      dom.roundSubtitle.textContent =
+        "Orange pegs left: " + uiState.orangeRemaining + ". Special ready. Press X or RB now.";
+    } else if (uiState.turnState === "aiming") {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Line up the launch.";
     } else {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Cash in the ricochets.";
@@ -252,13 +377,22 @@
       const character = window.GeppleCharacterLookup[player.characterId];
       const isActive = playerIndex === uiState.activePlayerIndex;
       const assignmentLabel = controllerManager.getAssignmentLabel(playerIndex);
-      const abilityStatus = player.abilityCharged
-        ? "Ready"
-        : player.abilityUsedThisShot
-          ? "Spent"
-          : "Waiting for green peg";
+      const abilityReady = isActive && player.abilityCharged && !player.abilityUsedThisShot;
+      let abilityStatus = "Waiting for green peg";
+      let abilityStatusClass = "status-pill status-pill--idle";
+
+      if (abilityReady) {
+        abilityStatus = "Ready - Press X / RB";
+        abilityStatusClass = "status-pill status-pill--ready";
+      }
+
+      if (player.abilityUsedThisShot) {
+        abilityStatus = "Spent this turn";
+        abilityStatusClass = "status-pill status-pill--spent";
+      }
 
       dom.hudPlayers[playerIndex].classList.toggle("is-active", isActive);
+      dom.hudPlayers[playerIndex].classList.toggle("is-ready", abilityReady);
       dom.hudPlayers[playerIndex].innerHTML =
         '<div class="hud-topline">' +
         '<span class="hud-label">' +
@@ -296,7 +430,9 @@
         '<div class="stat-line"><span>Balls Left</span><strong>' +
         player.ballsRemaining +
         "</strong></div>" +
-        '<div class="stat-line"><span>Ability</span><strong>' +
+        '<div class="stat-line"><span>Ability</span><strong class="' +
+        abilityStatusClass +
+        '">' +
         abilityStatus +
         "</strong></div>" +
         '<div class="stat-line"><span>Status</span><strong>' +
@@ -355,12 +491,13 @@
     dom.menuScreen.classList.toggle("is-hidden", !isMenu);
     dom.hudScreen.classList.toggle("is-hidden", !isPlaying);
     dom.roundOverScreen.classList.toggle("is-hidden", !isRoundOver);
+    dom.systemMenuScreen.classList.toggle("is-hidden", !isSystemMenuOpen);
 
     if (isRoundOver) {
       renderRoundOver(uiState);
 
-      if (sceneChanged) {
-        dom.playAgainButton.focus();
+      if (sceneChanged && !isSystemMenuOpen) {
+        focusRoundOverButton();
       }
     }
 
@@ -374,6 +511,10 @@
       if (sceneChanged) {
         focusFirstMenuButton();
       }
+    }
+
+    if (isSystemMenuOpen) {
+      renderSystemMenu();
     }
 
     lastScene = uiState.scene;
@@ -402,9 +543,29 @@
 
     controllerManager.update(now);
     handleConnectionEvents();
-    handleMenuInput(controllerManager.getMenuInput());
-
     const playerInputs = [controllerManager.getPlayerInput(0), controllerManager.getPlayerInput(1)];
+    const playerOneMenuInput = controllerManager.getMenuInput();
+    const startPressed = playerInputs.some(function checkInput(input) {
+      return input && input.startPressed;
+    });
+
+    if (startPressed) {
+      if (isSystemMenuOpen) {
+        closeSystemMenu();
+      } else {
+        openSystemMenu();
+      }
+    }
+
+    if (isSystemMenuOpen) {
+      handleSystemMenuInput(playerOneMenuInput);
+      game.render();
+      syncScreens();
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    handleMenuInput(playerOneMenuInput);
     game.update(deltaTime, playerInputs);
     syncScreens();
 
@@ -427,6 +588,9 @@
   dom.startGameButton.addEventListener("click", startRound);
   dom.playAgainButton.addEventListener("click", startRound);
   dom.backToMenuButton.addEventListener("click", backToMenu);
+  dom.systemResumeButton.addEventListener("click", closeSystemMenu);
+  dom.systemExitFullscreenButton.addEventListener("click", exitFullscreenMode);
+  dom.systemExitGameButton.addEventListener("click", exitGame);
 
   window.addEventListener("resize", resizeStage);
 

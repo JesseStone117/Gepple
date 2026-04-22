@@ -178,6 +178,23 @@
       return window.GeppleCharacterLookup[player.characterId];
     }
 
+    getLaunchVector(speed) {
+      return {
+        x: -Math.cos(this.turnAim) * speed,
+        y: -Math.sin(this.turnAim) * speed,
+      };
+    }
+
+    isActiveAbilityReady() {
+      const activePlayer = this.getActivePlayer();
+
+      if (!activePlayer) {
+        return false;
+      }
+
+      return activePlayer.abilityCharged && !activePlayer.abilityUsedThisShot;
+    }
+
     pushToast(text) {
       this.toasts.unshift({
         id: "toast-" + Date.now() + "-" + Math.random(),
@@ -280,15 +297,14 @@
       activePlayer.abilityUsedThisShot = false;
 
       const character = window.GeppleCharacterLookup[activePlayer.characterId];
-      const speedX = Math.cos(this.turnAim) * BALL_SPEED;
-      const speedY = Math.sin(this.turnAim) * BALL_SPEED;
+      const launchVector = this.getLaunchVector(BALL_SPEED);
 
       this.activeBalls.push({
         x: this.boardBounds.centerX,
         y: LAUNCH_Y,
         radius: BALL_RADIUS,
-        speedX,
-        speedY,
+        speedX: launchVector.x,
+        speedY: launchVector.y,
         ownerIndex: activePlayer.index,
         trailColor: character.trailColor,
         color: character.ballColor,
@@ -711,6 +727,7 @@
       this.renderBackground(context);
       this.renderBoardFrame(context);
       this.renderLauncher(context);
+      this.renderAbilityReadyIndicator(context);
       this.renderTrajectory(context);
       this.renderPegs(context);
       this.renderBucket(context);
@@ -807,8 +824,9 @@
 
       let x = this.boardBounds.centerX;
       let y = LAUNCH_Y;
-      let speedX = Math.cos(this.turnAim) * 18;
-      let speedY = Math.sin(this.turnAim) * 18;
+      const launchVector = this.getLaunchVector(18);
+      let speedX = launchVector.x;
+      let speedY = launchVector.y;
 
       context.fillStyle = "rgba(255, 255, 255, 0.48)";
 
@@ -825,6 +843,32 @@
         context.arc(x, y, Math.max(1.6, 5 - index * 0.14), 0, Math.PI * 2);
         context.fill();
       }
+    }
+
+    renderAbilityReadyIndicator(context) {
+      if (this.scene !== "playing") {
+        return;
+      }
+
+      if (!this.isActiveAbilityReady()) {
+        return;
+      }
+
+      const pulse = 0.5 + Math.sin(performance.now() * 0.01) * 0.5;
+      const outerRadius = 26 + pulse * 7;
+      const innerRadius = 18 + pulse * 3;
+
+      context.strokeStyle = "rgba(125, 242, 197, " + (0.4 + pulse * 0.25) + ")";
+      context.lineWidth = 4;
+      context.beginPath();
+      context.arc(this.boardBounds.centerX, LAUNCH_Y, outerRadius, 0, Math.PI * 2);
+      context.stroke();
+
+      context.strokeStyle = "rgba(255, 226, 122, " + (0.45 + pulse * 0.2) + ")";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(this.boardBounds.centerX, LAUNCH_Y, innerRadius, 0, Math.PI * 2);
+      context.stroke();
     }
 
     renderPegs(context) {

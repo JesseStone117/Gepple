@@ -152,7 +152,8 @@
         launchPressed: buttons.a && !previous.buttons.a,
         abilityPressed: (buttons.x || buttons.rb) && !(previous.buttons.x || previous.buttons.rb),
         confirmPressed: buttons.a && !previous.buttons.a,
-        backPressed: (buttons.b || buttons.start) && !(previous.buttons.b || previous.buttons.start),
+        startPressed: buttons.start && !previous.buttons.start,
+        backPressed: buttons.b && !previous.buttons.b,
         swapPressed: buttons.y && !previous.buttons.y,
         navLeftPressed: nav.left && !previous.nav.left,
         navRightPressed: nav.right && !previous.nav.right,
@@ -229,7 +230,8 @@
         launchPressed: (isDown("Space") || isDown("Enter")) && !(wasDown("Space") || wasDown("Enter")),
         abilityPressed: isDown("ShiftLeft") && !wasDown("ShiftLeft"),
         confirmPressed: (isDown("Enter") || isDown("Space")) && !(wasDown("Enter") || wasDown("Space")),
-        backPressed: isDown("Escape") && !wasDown("Escape"),
+        startPressed: isDown("Escape") && !wasDown("Escape"),
+        backPressed: isDown("Backspace") && !wasDown("Backspace"),
         swapPressed: isDown("Tab") && !wasDown("Tab"),
         navLeftPressed: axisLeft && !(wasDown("ArrowLeft") || wasDown("KeyA")),
         navRightPressed: axisRight && !(wasDown("ArrowRight") || wasDown("KeyD")),
@@ -263,40 +265,13 @@
     }
 
     getMenuInput() {
-      const keyboard = this.getKeyboardState();
-      const merged = Object.assign({}, keyboard);
+      const playerOnePad = this.getAssignedPad(0);
 
-      for (const pad of this.connectedPads) {
-        if (pad.navLeftPressed) {
-          merged.navLeftPressed = true;
-        }
-
-        if (pad.navRightPressed) {
-          merged.navRightPressed = true;
-        }
-
-        if (pad.navUpPressed) {
-          merged.navUpPressed = true;
-        }
-
-        if (pad.navDownPressed) {
-          merged.navDownPressed = true;
-        }
-
-        if (pad.confirmPressed) {
-          merged.confirmPressed = true;
-        }
-
-        if (pad.backPressed) {
-          merged.backPressed = true;
-        }
-
-        if (pad.swapPressed) {
-          merged.swapPressed = true;
-        }
+      if (playerOnePad) {
+        return playerOnePad;
       }
 
-      return merged;
+      return this.getKeyboardState();
     }
 
     getAssignmentLabel(playerIndex) {
