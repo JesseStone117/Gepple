@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gepple</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <canvas id="game-canvas" width="1600" height="900" aria-label="Gepple game board"></canvas>
+
+      <div class="ui-layer">
+        <section id="menu-screen" class="screen screen--menu">
+          <div class="hero-panel glass-panel">
+            <p class="eyebrow">Couch Co-op Peggle Energy</p>
+            <h1>Gepple</h1>
+            <p class="hero-copy">
+              Line up ridiculous ricochets, swap controllers in one tap, and take turns firing ability-loaded shots
+              on a fresh random board every round.
+            </p>
+          </div>
+
+          <div class="menu-grid">
+            <section class="glass-panel status-panel">
+              <div class="panel-heading">
+                <h2>Controller Lounge</h2>
+                <p>Each detected pad lights up on contact so you can see who is really holding what.</p>
+              </div>
+              <div id="controller-status" class="controller-status"></div>
+            </section>
+
+            <section class="glass-panel roster-panel">
+              <div class="panel-heading">
+                <h2>Choose Your Crew</h2>
+                <p>Use the arrow buttons, a d-pad, or a stick. Each hero brings a different green-peg power.</p>
+              </div>
+
+              <div class="player-grid">
+                <article class="player-card" id="player-card-0">
+                  <div class="player-topline">
+                    <span class="player-label">Player 1</span>
+                    <span class="assignment-pill" id="assignment-pill-0">Waiting for a controller</span>
+                  </div>
+
+                  <div class="portrait-frame">
+                    <div class="portrait-art" id="portrait-0"></div>
+                  </div>
+
+                  <div class="selector-row">
+                    <button
+                      class="menu-button menu-button--selector"
+                      data-action="character-prev"
+                      data-player="0"
+                      aria-label="Previous Player 1 character"
+                    >
+                      ◀
+                    </button>
+
+                    <div class="character-copy">
+                      <h3 id="character-name-0">Luna Hare</h3>
+                      <p id="character-title-0">Moonshot Captain</p>
+                    </div>
+
+                    <button
+                      class="menu-button menu-button--selector"
+                      data-action="character-next"
+                      data-player="0"
+                      aria-label="Next Player 1 character"
+                    >
+                      ▶
+                    </button>
+                  </div>
+
+                  <p class="ability-line" id="ability-line-0"></p>
+                </article>
+
+                <article class="player-card" id="player-card-1">
+                  <div class="player-topline">
+                    <span class="player-label">Player 2</span>
+                    <span class="assignment-pill" id="assignment-pill-1">Waiting for a controller</span>
+                  </div>
+
+                  <div class="portrait-frame">
+                    <div class="portrait-art" id="portrait-1"></div>
+                  </div>
+
+                  <div class="selector-row">
+                    <button
+                      class="menu-button menu-button--selector"
+                      data-action="character-prev"
+                      data-player="1"
+                      aria-label="Previous Player 2 character"
+                    >
+                      ◀
+                    </button>
+
+                    <div class="character-copy">
+                      <h3 id="character-name-1">Tempo Fox</h3>
+                      <p id="character-title-1">Bassline Brawler</p>
+                    </div>
+
+                    <button
+                      class="menu-button menu-button--selector"
+                      data-action="character-next"
+                      data-player="1"
+                      aria-label="Next Player 2 character"
+                    >
+                      ▶
+                    </button>
+                  </div>
+
+                  <p class="ability-line" id="ability-line-1"></p>
+                </article>
+              </div>
+
+              <div class="menu-actions">
+                <button id="swap-controllers-button" class="menu-button">Swap Controller Assignments</button>
+                <button id="start-game-button" class="menu-button menu-button--primary">Start Gepple</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="glass-panel controls-panel">
+            <div class="panel-heading">
+              <h2>How It Plays</h2>
+            </div>
+            <div class="controls-strip">
+              <p><strong>A / Space:</strong> launch the shot</p>
+              <p><strong>X / RB / Shift:</strong> fire your character power after a green peg charges it</p>
+              <p><strong>Left stick / D-pad:</strong> aim and navigate</p>
+              <p><strong>Y / Tab:</strong> swap controller assignments from the menu</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="hud-screen" class="screen screen--hud is-hidden">
+          <div class="hud-row">
+            <article class="hud-card" id="hud-player-0"></article>
+            <article class="hud-center">
+              <p class="hud-turn-label">Current Turn</p>
+              <h2 id="turn-indicator">Player 1</h2>
+              <p id="round-subtitle">Aim with care.</p>
+            </article>
+            <article class="hud-card" id="hud-player-1"></article>
+          </div>
+
+          <div class="toast-stack" id="toast-stack"></div>
+        </section>
+
+        <section id="round-over-screen" class="screen screen--round-over is-hidden">
+          <div class="glass-panel result-panel">
+            <p class="eyebrow" id="result-reason">Round Complete</p>
+            <h2 id="winner-heading">Player 1 Wins</h2>
+            <p id="winner-summary">Highest score takes the couch crown.</p>
+
+            <div class="scoreboard" id="scoreboard"></div>
+
+            <div class="menu-actions">
+              <button id="play-again-button" class="menu-button menu-button--primary">Play Again</button>
+              <button id="back-to-menu-button" class="menu-button">Back To Menu</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="src/characters.js"></script>
+    <script src="src/randomMap.js"></script>
+    <script src="src/audioManager.js"></script>
+    <script src="src/controllerManager.js"></script>
+    <script src="src/game.js"></script>
+    <script src="src/main.js"></script>
+  </body>
+</html>
