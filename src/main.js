@@ -2,6 +2,7 @@
   const STAGE_WIDTH = 1600;
   const STAGE_HEIGHT = 900;
   const characters = window.GeppleCharacters;
+  const mapOptions = window.GeppleMap.getMapOptions();
 
   const dom = {
     stageWrap: document.getElementById("stage-wrap"),
@@ -29,6 +30,7 @@
     characterTitles: [document.getElementById("character-title-0"), document.getElementById("character-title-1")],
     abilityLines: [document.getElementById("ability-line-0"), document.getElementById("ability-line-1")],
     assignmentPills: [document.getElementById("assignment-pill-0"), document.getElementById("assignment-pill-1")],
+    mapButtons: Array.from(document.querySelectorAll('[data-action="map-select"]')),
     winnerHeading: document.getElementById("winner-heading"),
     winnerSummary: document.getElementById("winner-summary"),
     resultReason: document.getElementById("result-reason"),
@@ -42,6 +44,7 @@
   const game = new window.GeppleGame(canvas, audioManager);
 
   let selectedCharacterIndices = [0, 1];
+  let selectedMapId = "random";
   let lastFrameTime = performance.now();
   let lastScene = "";
   let isSystemMenuOpen = false;
@@ -74,6 +77,19 @@
     renderMenu();
   }
 
+  function setSelectedMap(mapId) {
+    const mapExists = mapOptions.some(function hasMap(option) {
+      return option.id === mapId;
+    });
+
+    if (!mapExists) {
+      return;
+    }
+
+    selectedMapId = mapId;
+    renderMenu();
+  }
+
   function swapControllers() {
     controllerManager.swapAssignments();
     renderMenu();
@@ -93,7 +109,9 @@
 
   function startRound() {
     audioManager.unlock();
-    game.startRound(buildPlayerConfigs());
+    game.startRound(buildPlayerConfigs(), {
+      mapId: selectedMapId,
+    });
     syncScreens();
   }
 
@@ -104,7 +122,8 @@
   }
 
   function focusFirstMenuButton() {
-    const defaultMenuButton = document.querySelector('[data-action="character-prev"][data-player="0"]');
+    const defaultMenuButton =
+      document.querySelector('[data-action="map-select"][data-map-id="' + selectedMapId + '"]') || dom.startGameButton;
 
     if (defaultMenuButton) {
       defaultMenuButton.focus({ preventScroll: true });
@@ -129,24 +148,14 @@
     }
 
     const action = button.dataset.action;
-    const playerIndex = Number(button.dataset.player);
 
-    if (action === "character-prev") {
-      cycleCharacter(playerIndex, -1);
-      return;
-    }
-
-    if (action === "character-next") {
-      cycleCharacter(playerIndex, 1);
+    if (action === "map-select") {
+      setSelectedMap(button.dataset.mapId);
     }
   }
 
   function handleMenuInput(menuInput) {
     if (game.scene === "menu") {
-      if (menuInput.swapPressed) {
-        swapControllers();
-      }
-
       if (menuInput.confirmPressed && document.activeElement && document.activeElement.matches(".menu-button")) {
         document.activeElement.click();
       }
@@ -164,6 +173,37 @@
       if (menuInput.navLeftPressed || menuInput.navRightPressed || menuInput.navUpPressed || menuInput.navDownPressed) {
         moveFocus(menuInput);
       }
+    }
+  }
+
+  function getCharacterSelectInput(playerIndex) {
+    const assignedPad = controllerManager.getAssignedPad(playerIndex);
+
+    if (assignedPad) {
+      return assignedPad;
+    }
+
+    if (playerIndex === 0 && controllerManager.connectedPads.length === 0) {
+      return controllerManager.getKeyboardState();
+    }
+
+    return null;
+  }
+
+  function handleCharacterSelectShortcuts() {
+    if (game.scene !== "menu") {
+      return;
+    }
+
+    const playerOneInput = getCharacterSelectInput(0);
+    const playerTwoInput = getCharacterSelectInput(1);
+
+    if (playerOneInput && playerOneInput.changeCharacterPressed) {
+      cycleCharacter(0, 1);
+    }
+
+    if (playerTwoInput && playerTwoInput.changeCharacterPressed) {
+      cycleCharacter(1, 1);
     }
   }
 
@@ -417,12 +457,11 @@
   }
 
   function renderControllerStatus() {
-    const keyboard = controllerManager.getKeyboardState();
     const cards = controllerManager.connectedPads.slice();
 
     if (cards.length === 0) {
       dom.controllerStatus.innerHTML =
-        '<article class="controller-card"><div class="controller-card__title"><span>No controllers yet</span><span>Keyboard fallback ready</span></div><p class="controller-card__hint">Connect one or two Xbox pads. Gepple will auto-assign them, and you can swap assignments here.</p></article>';
+        '<article class="controller-card"><div class="controller-card__title"><span>No controllers yet</span><span>Xbox pads welcome</span></div><p class="controller-card__hint">Connect one or two Xbox pads. Gepple will auto-assign them, and you can swap assignments here.</p></article>';
       return;
     }
 
@@ -451,13 +490,6 @@
         );
       })
       .join("");
-
-    if (performance.now() - keyboard.lastActivityAt < 220) {
-      dom.controllerStatus.insertAdjacentHTML(
-        "beforeend",
-        '<article class="controller-card is-active"><div class="controller-card__title"><span>Keyboard</span><span>Fallback</span></div><p class="controller-card__hint">Useful for quick browser testing on desktop.</p></article>'
-      );
-    }
   }
 
   function renderMenu() {
@@ -473,6 +505,13 @@
       dom.portraitTargets[playerIndex].style.backgroundImage =
         "url('" + character.portraitPath + "'), " + character.portraitGradient;
       dom.portraitTargets[playerIndex].style.backgroundColor = character.accentSoft;
+    }
+
+    for (const button of dom.mapButtons) {
+      const isSelected = button.dataset.mapId === selectedMapId;
+
+      button.classList.toggle("is-selected", isSelected);
+      button.setAttribute("aria-pressed", isSelected ? "true" : "false");
     }
   }
 
@@ -687,6 +726,7 @@
       return;
     }
 
+    handleCharacterSelectShortcuts();
     handleMenuInput(playerOneMenuInput);
     game.update(deltaTime, playerInputs);
     syncScreens();

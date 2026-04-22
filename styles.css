@@ -203,6 +203,10 @@ h3 {
   line-height: 1.4;
 }
 
+.panel-heading--tight {
+  gap: 3px;
+}
+
 .controller-status {
   display: grid;
   gap: 12px;
@@ -319,13 +323,6 @@ h3 {
   background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.34), transparent 78%);
 }
 
-.selector-row {
-  display: grid;
-  grid-template-columns: 54px 1fr 54px;
-  gap: 12px;
-  align-items: center;
-}
-
 .character-copy {
   text-align: center;
 }
@@ -337,11 +334,33 @@ h3 {
   color: var(--text-soft);
 }
 
+.player-tooltip {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .ability-line,
 .hud-ability-copy {
   margin: 0;
   font-size: 15px;
   line-height: 1.48;
+}
+
+.map-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .menu-actions {
@@ -391,11 +410,34 @@ h3 {
   box-shadow: 0 16px 36px rgba(255, 143, 90, 0.28);
 }
 
-.menu-button--selector {
-  width: 54px;
-  height: 54px;
-  padding: 0;
-  font-size: 20px;
+.map-button {
+  display: grid;
+  gap: 6px;
+  min-height: 98px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  text-align: left;
+  align-content: start;
+}
+
+.map-button__name {
+  font-size: 18px;
+}
+
+.map-button__copy {
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.map-button.is-selected {
+  background: rgba(125, 242, 197, 0.16);
+  box-shadow: 0 0 0 2px rgba(125, 242, 197, 0.28), 0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.map-button.is-selected .map-button__copy {
+  color: #dffef3;
 }
 
 .controls-strip {

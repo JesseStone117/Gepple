@@ -77,6 +77,8 @@
       this.turnAim = -Math.PI / 2;
       this.turnDelay = 0;
       this.seed = 0;
+      this.mapId = "random";
+      this.mapName = "Random";
       this.roundReason = "";
       this.winnerIndex = 0;
 
@@ -112,12 +114,13 @@
       return bubbles;
     }
 
-    startRound(playerConfigs) {
+    startRound(playerConfigs, roundOptions) {
       this.scene = "playing";
       this.turnState = "aiming";
       this.turnAim = -Math.PI / 2;
       this.turnDelay = 0;
       this.seed = Date.now();
+      this.mapId = roundOptions && roundOptions.mapId ? roundOptions.mapId : "random";
       this.roundReason = "";
       this.winnerIndex = 0;
       this.bucket.x = this.boardBounds.centerX;
@@ -146,7 +149,7 @@
       this.cameraShake = 0;
 
       this.generateNewMap();
-      this.pushToast("Fresh board loaded. Orange pegs decide the pace.");
+      this.pushToast(this.mapName + " board loaded. Orange pegs decide the pace.");
     }
 
     returnToMenu() {
@@ -158,8 +161,12 @@
     }
 
     generateNewMap() {
-      const map = window.GeppleMap.generateMap(this.boardBounds, this.seed);
+      const map = window.GeppleMap.generateMap(this.boardBounds, {
+        seed: this.seed,
+        mapId: this.mapId,
+      });
 
+      this.mapName = map.name;
       this.pegs = map.pegs;
       this.orangeRemaining = map.orangeCount;
     }

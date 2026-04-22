@@ -38,7 +38,7 @@
                 <section class="glass-panel roster-panel">
                   <div class="panel-heading">
                     <h2>Choose Your Crew</h2>
-                    <p>Use the arrow buttons, a d-pad, or a stick. Each hero brings a different green-peg power.</p>
+                    <p>Player 1 moves menu focus. Each player can tap Y on their own controller to rotate heroes.</p>
                   </div>
 
                   <div class="player-grid">
@@ -52,31 +52,12 @@
                         <div class="portrait-art" id="portrait-0"></div>
                       </div>
 
-                      <div class="selector-row">
-                        <button
-                          class="menu-button menu-button--selector"
-                          data-action="character-prev"
-                          data-player="0"
-                          aria-label="Previous Player 1 character"
-                        >
-                          &#9664;
-                        </button>
-
-                        <div class="character-copy">
-                          <h3 id="character-name-0">Luna Hare</h3>
-                          <p id="character-title-0">Moonshot Captain</p>
-                        </div>
-
-                        <button
-                          class="menu-button menu-button--selector"
-                          data-action="character-next"
-                          data-player="0"
-                          aria-label="Next Player 1 character"
-                        >
-                          &#9654;
-                        </button>
+                      <div class="character-copy">
+                        <h3 id="character-name-0">Luna Hare</h3>
+                        <p id="character-title-0">Moonshot Captain</p>
                       </div>
 
+                      <p class="player-tooltip">Press Y on Player 1's controller to switch heroes.</p>
                       <p class="ability-line" id="ability-line-0"></p>
                     </article>
 
@@ -90,33 +71,43 @@
                         <div class="portrait-art" id="portrait-1"></div>
                       </div>
 
-                      <div class="selector-row">
-                        <button
-                          class="menu-button menu-button--selector"
-                          data-action="character-prev"
-                          data-player="1"
-                          aria-label="Previous Player 2 character"
-                        >
-                          &#9664;
-                        </button>
-
-                        <div class="character-copy">
-                          <h3 id="character-name-1">Tempo Fox</h3>
-                          <p id="character-title-1">Bassline Brawler</p>
-                        </div>
-
-                        <button
-                          class="menu-button menu-button--selector"
-                          data-action="character-next"
-                          data-player="1"
-                          aria-label="Next Player 2 character"
-                        >
-                          &#9654;
-                        </button>
+                      <div class="character-copy">
+                        <h3 id="character-name-1">Tempo Fox</h3>
+                        <p id="character-title-1">Bassline Brawler</p>
                       </div>
 
+                      <p class="player-tooltip">Press Y on Player 2's controller to switch heroes.</p>
                       <p class="ability-line" id="ability-line-1"></p>
                     </article>
+                  </div>
+
+                  <div class="map-panel">
+                    <div class="panel-heading panel-heading--tight">
+                      <h3>Pick A Board</h3>
+                      <p>Choose a static layout, or stay random for a new board every round.</p>
+                    </div>
+
+                    <div class="map-grid">
+                      <button class="menu-button map-button" data-action="map-select" data-map-id="random">
+                        <span class="map-button__name">Random</span>
+                        <span class="map-button__copy">Fresh peg soup every round.</span>
+                      </button>
+
+                      <button class="menu-button map-button" data-action="map-select" data-map-id="crown">
+                        <span class="map-button__name">Crown</span>
+                        <span class="map-button__copy">Royal spikes with a packed center.</span>
+                      </button>
+
+                      <button class="menu-button map-button" data-action="map-select" data-map-id="heart">
+                        <span class="map-button__name">Heart</span>
+                        <span class="map-button__copy">A chunky heart with a soft drop.</span>
+                      </button>
+
+                      <button class="menu-button map-button" data-action="map-select" data-map-id="diamond">
+                        <span class="map-button__name">Diamond</span>
+                        <span class="map-button__copy">A clean gem shape with a dense core.</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div class="menu-actions">
@@ -133,7 +124,8 @@
                   <div class="controls-strip">
                     <p><strong>A / Space:</strong> launch the shot</p>
                     <p><strong>Green peg:</strong> store your hero power for the next shot</p>
-                    <p><strong>Left stick / D-pad:</strong> aim and navigate</p>
+                    <p><strong>Y / Tab:</strong> change your own character in the menu</p>
+                    <p><strong>Player 1 stick / D-pad:</strong> move menu focus and aim</p>
                     <p><strong>Start / Esc:</strong> open the system menu</p>
                   </div>
                 </section>

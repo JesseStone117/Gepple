@@ -151,10 +151,10 @@
         aimY: nav.up ? -1 : nav.down ? 1 : axisY,
         launchPressed: buttons.a && !previous.buttons.a,
         abilityPressed: (buttons.x || buttons.rb) && !(previous.buttons.x || previous.buttons.rb),
+        changeCharacterPressed: buttons.y && !previous.buttons.y,
         confirmPressed: buttons.a && !previous.buttons.a,
         startPressed: buttons.start && !previous.buttons.start,
         backPressed: buttons.b && !previous.buttons.b,
-        swapPressed: buttons.y && !previous.buttons.y,
         navLeftPressed: nav.left && !previous.nav.left,
         navRightPressed: nav.right && !previous.nav.right,
         navUpPressed: nav.up && !previous.nav.up,
@@ -229,10 +229,10 @@
         aimY: axisUp ? -1 : axisDown ? 1 : 0,
         launchPressed: (isDown("Space") || isDown("Enter")) && !(wasDown("Space") || wasDown("Enter")),
         abilityPressed: isDown("ShiftLeft") && !wasDown("ShiftLeft"),
+        changeCharacterPressed: isDown("Tab") && !wasDown("Tab"),
         confirmPressed: (isDown("Enter") || isDown("Space")) && !(wasDown("Enter") || wasDown("Space")),
         startPressed: isDown("Escape") && !wasDown("Escape"),
         backPressed: isDown("Backspace") && !wasDown("Backspace"),
-        swapPressed: isDown("Tab") && !wasDown("Tab"),
         navLeftPressed: axisLeft && !(wasDown("ArrowLeft") || wasDown("KeyA")),
         navRightPressed: axisRight && !(wasDown("ArrowRight") || wasDown("KeyD")),
         navUpPressed: axisUp && !(wasDown("ArrowUp") || wasDown("KeyW")),
@@ -281,11 +281,7 @@
         return "Controller " + (assignedPad.index + 1);
       }
 
-      if (this.connectedPads.length > 0) {
-        return "Shared controller fallback";
-      }
-
-      return "Keyboard fallback";
+      return "Waiting for controller";
     }
 
     swapAssignments() {
