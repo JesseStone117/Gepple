@@ -1,6 +1,11 @@
 (function () {
   const GAME_WIDTH = 1600;
   const GAME_HEIGHT = 900;
+  const BOARD_LEFT = 292;
+  const BOARD_RIGHT = 1308;
+  const BOARD_TOP = 152;
+  const BOARD_BOTTOM = 778;
+  const LAUNCH_Y = 94;
   const BALL_RADIUS = 12;
   const BALL_SPEED = 860;
   const GRAVITY = 690;
@@ -13,6 +18,22 @@
 
   function lerp(start, end, amount) {
     return start + (end - start) * amount;
+  }
+
+  function traceRoundedRect(context, x, y, width, height, radius) {
+    const safeRadius = Math.min(radius, width / 2, height / 2);
+
+    context.beginPath();
+    context.moveTo(x + safeRadius, y);
+    context.lineTo(x + width - safeRadius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+    context.lineTo(x + width, y + height - safeRadius);
+    context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+    context.lineTo(x + safeRadius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+    context.lineTo(x, y + safeRadius);
+    context.quadraticCurveTo(x, y, x + safeRadius, y);
+    context.closePath();
   }
 
   function createParticle(x, y, color, size, speedX, speedY, life) {
@@ -36,6 +57,15 @@
 
       this.width = GAME_WIDTH;
       this.height = GAME_HEIGHT;
+      this.boardBounds = {
+        left: BOARD_LEFT,
+        right: BOARD_RIGHT,
+        top: BOARD_TOP,
+        bottom: BOARD_BOTTOM,
+        width: BOARD_RIGHT - BOARD_LEFT,
+        height: BOARD_BOTTOM - BOARD_TOP,
+        centerX: (BOARD_LEFT + BOARD_RIGHT) / 2,
+      };
 
       this.scene = "menu";
       this.turnState = "idle";
@@ -51,10 +81,10 @@
       this.winnerIndex = 0;
 
       this.bucket = {
-        x: 240,
-        y: this.height - 54,
-        width: 180,
-        height: 28,
+        x: this.boardBounds.centerX,
+        y: this.height - 52,
+        width: 158,
+        height: 30,
         speed: 280,
         direction: 1,
       };
@@ -90,6 +120,8 @@
       this.seed = Date.now();
       this.roundReason = "";
       this.winnerIndex = 0;
+      this.bucket.x = this.boardBounds.centerX;
+      this.bucket.direction = 1;
 
       this.players = playerConfigs.map(function mapPlayer(playerConfig, index) {
         return {
@@ -126,7 +158,7 @@
     }
 
     generateNewMap() {
-      const map = window.GeppleMap.generateMap(this.width, this.height, this.seed);
+      const map = window.GeppleMap.generateMap(this.boardBounds, this.seed);
 
       this.pegs = map.pegs;
       this.orangeRemaining = map.orangeCount;
@@ -248,14 +280,12 @@
       activePlayer.abilityUsedThisShot = false;
 
       const character = window.GeppleCharacterLookup[activePlayer.characterId];
-      const launchX = this.width / 2;
-      const launchY = 102;
       const speedX = Math.cos(this.turnAim) * BALL_SPEED;
       const speedY = Math.sin(this.turnAim) * BALL_SPEED;
 
       this.activeBalls.push({
-        x: launchX,
-        y: launchY,
+        x: this.boardBounds.centerX,
+        y: LAUNCH_Y,
         radius: BALL_RADIUS,
         speedX,
         speedY,
@@ -304,6 +334,11 @@
 
       this.handleWallBounce(ball);
       this.handleBucketCatch(ball);
+
+      if (ball.isRemoved) {
+        return;
+      }
+
       this.handlePegCollisions(ball);
     }
 
@@ -340,18 +375,22 @@
     }
 
     handleWallBounce(ball) {
-      if (ball.x - ball.radius < 20) {
-        ball.x = 20 + ball.radius;
+      const leftWall = this.boardBounds.left + 12;
+      const rightWall = this.boardBounds.right - 12;
+      const ceiling = 42;
+
+      if (ball.x - ball.radius < leftWall) {
+        ball.x = leftWall + ball.radius;
         ball.speedX = Math.abs(ball.speedX) * 0.98;
       }
 
-      if (ball.x + ball.radius > this.width - 20) {
-        ball.x = this.width - 20 - ball.radius;
+      if (ball.x + ball.radius > rightWall) {
+        ball.x = rightWall - ball.radius;
         ball.speedX = -Math.abs(ball.speedX) * 0.98;
       }
 
-      if (ball.y - ball.radius < 40) {
-        ball.y = 40 + ball.radius;
+      if (ball.y - ball.radius < ceiling) {
+        ball.y = ceiling + ball.radius;
         ball.speedY = Math.abs(ball.speedY) * 0.96;
       }
     }
@@ -559,15 +598,18 @@
     }
 
     updateBucket(deltaTime) {
+      const minX = this.boardBounds.left + 96;
+      const maxX = this.boardBounds.right - 96;
+
       this.bucket.x += this.bucket.direction * this.bucket.speed * deltaTime;
 
-      if (this.bucket.x < 170) {
-        this.bucket.x = 170;
+      if (this.bucket.x < minX) {
+        this.bucket.x = minX;
         this.bucket.direction = 1;
       }
 
-      if (this.bucket.x > this.width - 170) {
-        this.bucket.x = this.width - 170;
+      if (this.bucket.x > maxX) {
+        this.bucket.x = maxX;
         this.bucket.direction = -1;
       }
     }
@@ -667,6 +709,7 @@
       }
 
       this.renderBackground(context);
+      this.renderBoardFrame(context);
       this.renderLauncher(context);
       this.renderTrajectory(context);
       this.renderPegs(context);
@@ -710,12 +753,38 @@
       }
     }
 
-    renderLauncher(context) {
-      const launcherX = this.width / 2;
-      const launcherY = 80;
+    renderBoardFrame(context) {
+      const board = this.boardBounds;
 
+      context.fillStyle = "rgba(2, 7, 15, 0.22)";
+      context.fillRect(0, 0, board.left - 24, this.height);
+      context.fillRect(board.right + 24, 0, this.width - board.right - 24, this.height);
+
+      traceRoundedRect(context, board.left - 18, board.top - 18, board.width + 36, board.height + 112, 30);
+      context.fillStyle = "rgba(4, 12, 22, 0.18)";
+      context.fill();
+
+      traceRoundedRect(context, board.left - 18, board.top - 18, board.width + 36, board.height + 112, 30);
+      context.strokeStyle = "rgba(179, 219, 255, 0.16)";
+      context.lineWidth = 2;
+      context.stroke();
+
+      context.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      context.lineWidth = 1;
+
+      for (let index = 1; index <= 4; index += 1) {
+        const x = board.left + (board.width / 5) * index;
+
+        context.beginPath();
+        context.moveTo(x, board.top + 20);
+        context.lineTo(x, board.bottom + 52);
+        context.stroke();
+      }
+    }
+
+    renderLauncher(context) {
       context.save();
-      context.translate(launcherX, launcherY);
+      context.translate(this.boardBounds.centerX, 74);
       context.rotate(this.turnAim + Math.PI / 2);
 
       context.fillStyle = "rgba(255, 255, 255, 0.18)";
@@ -724,6 +793,11 @@
       context.fillStyle = "rgba(255, 226, 122, 0.8)";
       context.fillRect(-8, -24, 16, 28);
       context.restore();
+
+      context.fillStyle = "rgba(255, 255, 255, 0.22)";
+      context.beginPath();
+      context.arc(this.boardBounds.centerX, LAUNCH_Y, 18, 0, Math.PI * 2);
+      context.fill();
     }
 
     renderTrajectory(context) {
@@ -731,8 +805,8 @@
         return;
       }
 
-      let x = this.width / 2;
-      let y = 102;
+      let x = this.boardBounds.centerX;
+      let y = LAUNCH_Y;
       let speedX = Math.cos(this.turnAim) * 18;
       let speedY = Math.sin(this.turnAim) * 18;
 
@@ -743,7 +817,7 @@
         y += speedY;
         speedY += 0.32;
 
-        if (x < 20 || x > this.width - 20) {
+        if (x < this.boardBounds.left + 12 || x > this.boardBounds.right - 12) {
           speedX *= -1;
         }
 
@@ -793,8 +867,12 @@
       const left = this.bucket.x - this.bucket.width / 2;
       const top = this.bucket.y - this.bucket.height;
 
+      context.fillStyle = "rgba(255, 255, 255, 0.08)";
+      context.fillRect(this.boardBounds.left + 24, top - 8, this.boardBounds.width - 48, this.bucket.height + 10);
+
       context.fillStyle = "rgba(255, 255, 255, 0.18)";
       context.fillRect(left, top, this.bucket.width, this.bucket.height);
+
       context.fillStyle = "rgba(125, 242, 197, 0.34)";
       context.fillRect(left + 18, top + 4, this.bucket.width - 36, this.bucket.height - 8);
     }

@@ -1,7 +1,4 @@
 (function () {
-  const MAP_WIDTH_PADDING = 140;
-  const MAP_TOP = 180;
-  const MAP_BOTTOM = 660;
   const PEG_RADIUS = 16;
   const TOTAL_PEGS = 42;
   const ORANGE_COUNT = 12;
@@ -49,27 +46,32 @@
     return true;
   }
 
-  function generateCandidates(width, height, random) {
+  function generateCandidates(boardBounds, random) {
     const candidates = [];
-    const usableWidth = width - MAP_WIDTH_PADDING * 2;
+    const innerPadding = 72;
+    const left = boardBounds.left + innerPadding;
+    const right = boardBounds.right - innerPadding;
+    const top = boardBounds.top + 26;
+    const bottom = boardBounds.bottom - 94;
+    const usableWidth = right - left;
     const rows = 6;
     const columns = 8;
     const xStep = usableWidth / (columns - 1);
-    const yStep = (MAP_BOTTOM - MAP_TOP) / (rows - 1);
+    const yStep = (bottom - top) / (rows - 1);
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const offset = row % 2 === 0 ? 0 : xStep / 2;
-        const x = MAP_WIDTH_PADDING + column * xStep + offset + (random() - 0.5) * 26;
-        const y = MAP_TOP + row * yStep + (random() - 0.5) * 28;
+        const x = left + column * xStep + offset + (random() - 0.5) * 26;
+        const y = top + row * yStep + (random() - 0.5) * 28;
 
-        if (x < MAP_WIDTH_PADDING || x > width - MAP_WIDTH_PADDING) {
+        if (x < left || x > right) {
           continue;
         }
 
         candidates.push({
           x,
-          y: Math.max(MAP_TOP, Math.min(MAP_BOTTOM, y)),
+          y: Math.max(top, Math.min(bottom, y)),
           radius: PEG_RADIUS,
         });
       }
@@ -113,9 +115,9 @@
     });
   }
 
-  function generateMap(width, height, seed) {
+  function generateMap(boardBounds, seed) {
     const random = createRandom(seed);
-    const candidates = generateCandidates(width, height, random);
+    const candidates = generateCandidates(boardBounds, random);
     const pegs = [];
 
     for (const candidate of candidates) {

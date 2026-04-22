@@ -1,7 +1,11 @@
 (function () {
+  const STAGE_WIDTH = 1600;
+  const STAGE_HEIGHT = 900;
   const characters = window.GeppleCharacters;
 
   const dom = {
+    stageWrap: document.getElementById("stage-wrap"),
+    gameStage: document.getElementById("game-stage"),
     menuScreen: document.getElementById("menu-screen"),
     hudScreen: document.getElementById("hud-screen"),
     roundOverScreen: document.getElementById("round-over-screen"),
@@ -34,18 +38,12 @@
   let lastFrameTime = performance.now();
   let lastScene = "";
 
-  function resizeCanvas() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const aspect = 1600 / 900;
+  function resizeStage() {
+    const scale = Math.max(0.1, Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT));
 
-    if (width / height > aspect) {
-      canvas.style.width = height * aspect + "px";
-      canvas.style.height = height + "px";
-    } else {
-      canvas.style.width = width + "px";
-      canvas.style.height = width / aspect + "px";
-    }
+    dom.stageWrap.style.width = STAGE_WIDTH * scale + "px";
+    dom.stageWrap.style.height = STAGE_HEIGHT * scale + "px";
+    dom.gameStage.style.transform = "scale(" + scale + ")";
   }
 
   function cycleCharacter(playerIndex, direction) {
@@ -86,10 +84,8 @@
   }
 
   function focusFirstMenuButton() {
-    const button = dom.startGameButton;
-
-    if (button) {
-      button.focus();
+    if (dom.startGameButton) {
+      dom.startGameButton.focus();
     }
   }
 
@@ -230,7 +226,6 @@
       dom.characterTitles[playerIndex].textContent = character.title;
       dom.abilityLines[playerIndex].textContent = character.abilityName + ": " + character.abilityDescription;
       dom.assignmentPills[playerIndex].textContent = controllerManager.getAssignmentLabel(playerIndex);
-
       dom.portraitTargets[playerIndex].style.backgroundImage =
         "url('" + character.portraitPath + "'), " + character.portraitGradient;
       dom.portraitTargets[playerIndex].style.backgroundColor = character.accentSoft;
@@ -249,22 +244,51 @@
     if (uiState.turnState === "aiming") {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Line up the launch.";
     } else {
-      dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Ability on green pegs.";
+      dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Cash in the ricochets.";
     }
 
     for (let playerIndex = 0; playerIndex < uiState.players.length; playerIndex += 1) {
       const player = uiState.players[playerIndex];
       const character = window.GeppleCharacterLookup[player.characterId];
       const isActive = playerIndex === uiState.activePlayerIndex;
+      const assignmentLabel = controllerManager.getAssignmentLabel(playerIndex);
+      const abilityStatus = player.abilityCharged
+        ? "Ready"
+        : player.abilityUsedThisShot
+          ? "Spent"
+          : "Waiting for green peg";
 
+      dom.hudPlayers[playerIndex].classList.toggle("is-active", isActive);
       dom.hudPlayers[playerIndex].innerHTML =
-        "<h3>" +
+        '<div class="hud-topline">' +
+        '<span class="hud-label">' +
         player.name +
-        "</h3>" +
-        '<p>' +
+        "</span>" +
+        '<span class="assignment-pill">' +
+        assignmentLabel +
+        "</span>" +
+        "</div>" +
+        '<div class="portrait-frame portrait-frame--hud">' +
+        '<div class="portrait-art" style="background-image: url(\'' +
+        character.portraitPath +
+        "'), " +
+        character.portraitGradient +
+        "; background-color: " +
+        character.accentSoft +
+        ';"></div>' +
+        "</div>" +
+        "<div>" +
+        "<h3>" +
         character.name +
-        " | " +
-        controllerManager.getAssignmentLabel(playerIndex) +
+        "</h3>" +
+        '<p class="hud-title">' +
+        character.title +
+        "</p>" +
+        "</div>" +
+        '<p class="hud-ability-copy"><strong>' +
+        character.abilityName +
+        "</strong> " +
+        character.abilityDescription +
         "</p>" +
         '<div class="stat-line"><span>Score</span><strong>' +
         player.score.toLocaleString() +
@@ -273,7 +297,7 @@
         player.ballsRemaining +
         "</strong></div>" +
         '<div class="stat-line"><span>Ability</span><strong>' +
-        (player.abilityCharged ? "Ready" : player.abilityUsedThisShot ? "Spent" : "Waiting for green peg") +
+        abilityStatus +
         "</strong></div>" +
         '<div class="stat-line"><span>Status</span><strong>' +
         (isActive ? "Shooting now" : "Waiting turn") +
@@ -404,9 +428,9 @@
   dom.playAgainButton.addEventListener("click", startRound);
   dom.backToMenuButton.addEventListener("click", backToMenu);
 
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize", resizeStage);
 
-  resizeCanvas();
+  resizeStage();
   renderMenu();
   syncScreens();
   focusFirstMenuButton();
