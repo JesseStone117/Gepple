@@ -1,8 +1,8 @@
 (function (globalScope) {
-  const PEG_RADIUS = 16;
-  const TOTAL_PEGS = 56;
-  const ORANGE_COUNT = 16;
-  const GREEN_COUNT = 3;
+  const PEG_RADIUS = 12;
+  const TOTAL_PEGS = 96;
+  const ORANGE_COUNT = 25;
+  const GREEN_COUNT = 2;
   const LAUNCH_Y = 94;
   const AIM_LEFT_EDGE = -0.14;
   const AIM_RIGHT_EDGE = -Math.PI + 0.32;
@@ -12,22 +12,22 @@
     {
       id: "random",
       name: "Random",
-      description: "Fresh peg soup every round.",
+      description: "Peggle-style density with fresh spacing every round.",
     },
     {
       id: "crown",
       name: "Crown",
-      description: "Royal spikes with a packed center.",
+      description: "A crown with hanging drapes and jewel clusters.",
     },
     {
       id: "heart",
       name: "Heart",
-      description: "A chunky heart with a soft drop.",
+      description: "A layered heart with ribbons and side flourishes.",
     },
     {
       id: "diamond",
       name: "Diamond",
-      description: "A clean gem shape with a dense core.",
+      description: "A big center gem with orbiting side pieces.",
     },
   ];
 
@@ -70,6 +70,21 @@
     return copy;
   }
 
+  function spread(start, end, count) {
+    if (count <= 1) {
+      return [start];
+    }
+
+    const values = [];
+    const step = (end - start) / (count - 1);
+
+    for (let index = 0; index < count; index += 1) {
+      values.push(Number((start + step * index).toFixed(3)));
+    }
+
+    return values;
+  }
+
   function createAimVector(turnAim) {
     return {
       x: -Math.cos(turnAim),
@@ -109,38 +124,99 @@
     });
   }
 
-  function isFarEnough(candidate, pegs) {
-    for (const peg of pegs) {
-      const dx = candidate.x - peg.x;
-      const dy = candidate.y - peg.y;
-      const distance = Math.hypot(dx, dy);
+  function createPointsFromRows(rows) {
+    const points = [];
 
-      if (distance < PEG_RADIUS * 2.5) {
-        return false;
+    for (const row of rows) {
+      for (const x of row.xs) {
+        points.push({
+          x,
+          y: row.y,
+        });
       }
     }
 
-    return true;
+    return points;
+  }
+
+  function buildCrownRows() {
+    return [
+      { y: 0.16, xs: [0.12, 0.18, 0.28, 0.4, 0.5, 0.6, 0.72, 0.82] },
+      { y: 0.22, xs: [0.1, 0.16, 0.22, 0.32, 0.4, 0.5, 0.6, 0.68, 0.78, 0.84] },
+      { y: 0.29, xs: [0.12, 0.18, 0.24, 0.34, 0.42, 0.5, 0.58, 0.66, 0.76, 0.82] },
+      { y: 0.36, xs: [0.08, 0.14, 0.2, 0.28, 0.36, 0.44, 0.56, 0.64, 0.72, 0.8, 0.86, 0.92] },
+      { y: 0.44, xs: spread(0.12, 0.88, 12) },
+      { y: 0.53, xs: [0.16, 0.22, 0.28, 0.34, 0.42, 0.5, 0.58, 0.66, 0.72, 0.78, 0.84, 0.9] },
+      { y: 0.62, xs: [0.08, 0.16, 0.24, 0.32, 0.4, 0.6, 0.68, 0.76, 0.84, 0.92] },
+      { y: 0.71, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.56, 0.64, 0.72, 0.8, 0.88] },
+      { y: 0.8, xs: [0.18, 0.3, 0.42, 0.5, 0.58, 0.7, 0.82] },
+      { y: 0.88, xs: [0.28, 0.4, 0.5, 0.6, 0.72] },
+    ];
+  }
+
+  function buildHeartRows() {
+    return [
+      { y: 0.16, xs: [0.22, 0.3, 0.38, 0.44, 0.56, 0.62, 0.7, 0.78] },
+      { y: 0.23, xs: [0.16, 0.24, 0.32, 0.38, 0.44, 0.56, 0.62, 0.68, 0.76, 0.84] },
+      { y: 0.3, xs: [0.1, 0.16, 0.22, 0.28, 0.34, 0.42, 0.58, 0.66, 0.72, 0.78, 0.84, 0.9] },
+      { y: 0.38, xs: spread(0.12, 0.88, 12) },
+      { y: 0.47, xs: spread(0.14, 0.86, 12) },
+      { y: 0.56, xs: [0.18, 0.24, 0.3, 0.36, 0.42, 0.48, 0.52, 0.58, 0.64, 0.7, 0.76, 0.82] },
+      { y: 0.66, xs: [0.16, 0.24, 0.32, 0.4, 0.46, 0.54, 0.6, 0.68, 0.76, 0.84] },
+      { y: 0.75, xs: [0.18, 0.28, 0.38, 0.46, 0.54, 0.62, 0.72, 0.82, 0.26, 0.74] },
+      { y: 0.84, xs: [0.24, 0.34, 0.46, 0.54, 0.66, 0.76] },
+      { y: 0.9, xs: [0.4, 0.46, 0.54, 0.6] },
+    ];
+  }
+
+  function buildDiamondRows() {
+    return [
+      { y: 0.14, xs: [0.34, 0.46, 0.54, 0.66] },
+      { y: 0.21, xs: [0.24, 0.34, 0.42, 0.46, 0.54, 0.58, 0.66, 0.76] },
+      { y: 0.28, xs: [0.18, 0.28, 0.36, 0.44, 0.48, 0.52, 0.56, 0.64, 0.72, 0.82] },
+      { y: 0.36, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.48, 0.52, 0.56, 0.64, 0.72, 0.8, 0.88] },
+      { y: 0.45, xs: [0.08, 0.16, 0.24, 0.32, 0.4, 0.46, 0.5, 0.54, 0.6, 0.68, 0.76, 0.84, 0.12, 0.88] },
+      { y: 0.55, xs: [0.12, 0.18, 0.24, 0.32, 0.4, 0.46, 0.5, 0.54, 0.6, 0.68, 0.76, 0.82, 0.88, 0.94] },
+      { y: 0.64, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.48, 0.52, 0.56, 0.64, 0.72, 0.8, 0.88] },
+      { y: 0.73, xs: [0.18, 0.28, 0.36, 0.44, 0.48, 0.52, 0.56, 0.64, 0.72, 0.82] },
+      { y: 0.82, xs: [0.24, 0.34, 0.42, 0.46, 0.54, 0.58, 0.66, 0.76] },
+      { y: 0.9, xs: [0.34, 0.46, 0.54, 0.66] },
+    ];
+  }
+
+  function getPresetRows(mapId) {
+    if (mapId === "crown") {
+      return buildCrownRows();
+    }
+
+    if (mapId === "heart") {
+      return buildHeartRows();
+    }
+
+    if (mapId === "diamond") {
+      return buildDiamondRows();
+    }
+
+    return [];
   }
 
   function generateRandomCandidates(boardBounds, random) {
     const candidates = [];
-    const innerPadding = 72;
+    const innerPadding = 58;
     const left = boardBounds.left + innerPadding;
     const right = boardBounds.right - innerPadding;
-    const top = boardBounds.top + 26;
-    const bottom = boardBounds.bottom - 94;
-    const usableWidth = right - left;
-    const rows = 8;
-    const columns = 11;
-    const xStep = usableWidth / (columns - 1);
+    const top = boardBounds.top + 18;
+    const bottom = boardBounds.bottom - 86;
+    const rows = 9;
+    const columns = 13;
+    const xStep = (right - left) / (columns - 1);
     const yStep = (bottom - top) / (rows - 1);
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const offset = row % 2 === 0 ? 0 : xStep / 2;
-        const x = left + column * xStep + offset + (random() - 0.5) * 26;
-        const y = top + row * yStep + (random() - 0.5) * 28;
+        const x = left + column * xStep + offset + (random() - 0.5) * 14;
+        const y = top + row * yStep + (random() - 0.5) * 12;
 
         if (x < left || x > right) {
           continue;
@@ -159,82 +235,7 @@
       }
     }
 
-    return shuffle(candidates, random);
-  }
-
-  function createPointsFromRows(rows) {
-    const points = [];
-
-    for (const row of rows) {
-      for (const x of row.xs) {
-        points.push({
-          x,
-          y: row.y,
-        });
-      }
-    }
-
-    return points;
-  }
-
-  function spread(start, end, count) {
-    if (count <= 1) {
-      return [start];
-    }
-
-    const values = [];
-    const step = (end - start) / (count - 1);
-
-    for (let index = 0; index < count; index += 1) {
-      values.push(Number((start + step * index).toFixed(3)));
-    }
-
-    return values;
-  }
-
-  function getPresetRows(mapId) {
-    if (mapId === "crown") {
-      return [
-        { y: 0.18, xs: spread(0.18, 0.82, 6) },
-        { y: 0.26, xs: spread(0.12, 0.88, 10) },
-        { y: 0.34, xs: spread(0.16, 0.84, 9) },
-        { y: 0.43, xs: spread(0.2, 0.8, 8) },
-        { y: 0.53, xs: spread(0.24, 0.76, 7) },
-        { y: 0.63, xs: spread(0.27, 0.73, 6) },
-        { y: 0.74, xs: spread(0.31, 0.69, 5) },
-        { y: 0.84, xs: spread(0.33, 0.67, 5) },
-      ];
-    }
-
-    if (mapId === "heart") {
-      return [
-        { y: 0.2, xs: [0.28, 0.38, 0.5, 0.62, 0.72] },
-        { y: 0.28, xs: spread(0.2, 0.8, 8) },
-        { y: 0.36, xs: spread(0.14, 0.86, 10) },
-        { y: 0.45, xs: spread(0.18, 0.82, 10) },
-        { y: 0.54, xs: spread(0.24, 0.76, 8) },
-        { y: 0.64, xs: spread(0.3, 0.7, 7) },
-        { y: 0.75, xs: spread(0.38, 0.62, 5) },
-        { y: 0.84, xs: spread(0.46, 0.54, 3) },
-      ];
-    }
-
-    if (mapId === "diamond") {
-      return [
-        { y: 0.22, xs: [0.5] },
-        { y: 0.28, xs: spread(0.4, 0.6, 3) },
-        { y: 0.34, xs: spread(0.3, 0.7, 5) },
-        { y: 0.4, xs: spread(0.22, 0.78, 7) },
-        { y: 0.47, xs: spread(0.14, 0.86, 9) },
-        { y: 0.54, xs: spread(0.1, 0.9, 11) },
-        { y: 0.62, xs: spread(0.14, 0.86, 9) },
-        { y: 0.7, xs: spread(0.22, 0.78, 7) },
-        { y: 0.78, xs: spread(0.4, 0.6, 3) },
-        { y: 0.86, xs: [0.5] },
-      ];
-    }
-
-    return [];
+    return shuffle(candidates, random).slice(0, TOTAL_PEGS);
   }
 
   function normalizePatternPoint(boardBounds, point) {
@@ -305,22 +306,7 @@
     }
 
     const random = createRandom(seed);
-    const candidates = generateRandomCandidates(boardBounds, random);
-    const pegs = [];
-
-    for (const candidate of candidates) {
-      if (pegs.length >= TOTAL_PEGS) {
-        break;
-      }
-
-      if (!isFarEnough(candidate, pegs)) {
-        continue;
-      }
-
-      pegs.push(candidate);
-    }
-
-    return pegs;
+    return generateRandomCandidates(boardBounds, random);
   }
 
   function getDecorationSeed(seed, mapId) {

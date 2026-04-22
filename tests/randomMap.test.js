@@ -45,7 +45,7 @@ runTest("random layouts never place pegs above the safe aim window", function ()
     });
     const tooHigh = GeppleMap.findPegsAboveAimWindow(boardBounds, map.pegs);
 
-    assert.equal(map.pegs.length, 56);
+    assert.equal(map.pegs.length, 96);
     assert.equal(tooHigh.length, 0, "seed " + seed + " placed a peg above the safe aim window");
   }
 });
@@ -57,9 +57,9 @@ runTest("every selectable layout keeps the expected peg counts and color counts"
       mapId: option.id,
     });
 
-    assert.equal(map.pegs.length, 56, option.id + " should have 56 pegs");
-    assert.equal(getTypeCount(map.pegs, "orange"), 16, option.id + " should have 16 orange pegs");
-    assert.equal(getTypeCount(map.pegs, "green"), 3, option.id + " should have 3 green pegs");
+    assert.equal(map.pegs.length, 96, option.id + " should have 96 pegs");
+    assert.equal(getTypeCount(map.pegs, "orange"), 25, option.id + " should have 25 orange pegs");
+    assert.equal(getTypeCount(map.pegs, "green"), 2, option.id + " should have 2 green pegs");
     assert.equal(GeppleMap.findPegsAboveAimWindow(boardBounds, map.pegs).length, 0, option.id + " has a peg that is too high");
   }
 });
