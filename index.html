@@ -14,121 +14,125 @@
 
           <div class="ui-layer">
             <section id="menu-screen" class="screen screen--menu">
-              <div class="menu-left-rail">
-                <div class="hero-panel glass-panel">
-                  <p class="eyebrow">Couch Co-op Peggle Energy</p>
-                  <h1>Gepple</h1>
-                  <p class="hero-copy">
-                    Line up ridiculous ricochets, swap controllers in one tap, and take turns firing ability-loaded
-                    shots on a fresh random board every round.
-                  </p>
+              <div class="menu-shell-wrap" id="menu-shell-wrap">
+                <div class="menu-shell" id="menu-shell">
+                  <div class="menu-left-rail">
+                    <div class="hero-panel glass-panel">
+                      <p class="eyebrow">Couch Co-op Peggle Energy</p>
+                      <h1>Gepple</h1>
+                      <p class="hero-copy">
+                        Line up ridiculous ricochets, swap controllers in one tap, and take turns firing ability-loaded
+                        shots on a fresh random board every round.
+                      </p>
+                    </div>
+
+                    <section class="glass-panel status-panel">
+                      <div class="panel-heading">
+                        <h2>Controller Lounge</h2>
+                        <p>Each detected pad lights up on contact so you can see who is really holding what.</p>
+                      </div>
+
+                      <div id="controller-status" class="controller-status"></div>
+                    </section>
+                  </div>
+
+                  <div class="menu-right-rail">
+                    <section class="glass-panel roster-panel">
+                      <div class="panel-heading">
+                        <h2>Choose Your Crew</h2>
+                        <p>Player 1 moves menu focus. Each player can tap Y on their own controller to rotate heroes.</p>
+                      </div>
+
+                      <div class="player-grid">
+                        <article class="player-card" id="player-card-0">
+                          <div class="player-topline">
+                            <span class="player-label">Player 1</span>
+                            <span class="assignment-pill" id="assignment-pill-0">Waiting for a controller</span>
+                          </div>
+
+                          <div class="portrait-frame">
+                            <div class="portrait-art" id="portrait-0"></div>
+                          </div>
+
+                          <div class="character-copy">
+                            <h3 id="character-name-0">Luna Hare</h3>
+                            <p id="character-title-0">Moonshot Captain</p>
+                          </div>
+
+                          <p class="player-tooltip">Press Y on Player 1's controller to switch heroes.</p>
+                          <p class="ability-line" id="ability-line-0"></p>
+                        </article>
+
+                        <article class="player-card" id="player-card-1">
+                          <div class="player-topline">
+                            <span class="player-label">Player 2</span>
+                            <span class="assignment-pill" id="assignment-pill-1">Waiting for a controller</span>
+                          </div>
+
+                          <div class="portrait-frame">
+                            <div class="portrait-art" id="portrait-1"></div>
+                          </div>
+
+                          <div class="character-copy">
+                            <h3 id="character-name-1">Tempo Fox</h3>
+                            <p id="character-title-1">Bassline Brawler</p>
+                          </div>
+
+                          <p class="player-tooltip">Press Y on Player 2's controller to switch heroes.</p>
+                          <p class="ability-line" id="ability-line-1"></p>
+                        </article>
+                      </div>
+
+                      <div class="map-panel">
+                        <div class="panel-heading panel-heading--tight">
+                          <h3>Pick A Board</h3>
+                          <p>Choose a static layout, or stay random for a new board every round.</p>
+                        </div>
+
+                        <div class="map-grid">
+                          <button class="menu-button map-button" data-action="map-select" data-map-id="random">
+                            <span class="map-button__name">Random</span>
+                            <span class="map-button__copy">Fresh peg soup every round.</span>
+                          </button>
+
+                          <button class="menu-button map-button" data-action="map-select" data-map-id="crown">
+                            <span class="map-button__name">Crown</span>
+                            <span class="map-button__copy">Royal spikes with a packed center.</span>
+                          </button>
+
+                          <button class="menu-button map-button" data-action="map-select" data-map-id="heart">
+                            <span class="map-button__name">Heart</span>
+                            <span class="map-button__copy">A chunky heart with a soft drop.</span>
+                          </button>
+
+                          <button class="menu-button map-button" data-action="map-select" data-map-id="diamond">
+                            <span class="map-button__name">Diamond</span>
+                            <span class="map-button__copy">A clean gem shape with a dense core.</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="menu-actions">
+                        <button id="swap-controllers-button" class="menu-button">Swap Controller Assignments</button>
+                        <button id="start-game-button" class="menu-button menu-button--primary">Start Gepple</button>
+                      </div>
+                    </section>
+
+                    <section class="glass-panel controls-panel">
+                      <div class="panel-heading">
+                        <h2>How It Plays</h2>
+                      </div>
+
+                      <div class="controls-strip">
+                        <p><strong>A / Space:</strong> launch the shot</p>
+                        <p><strong>Green peg:</strong> store your hero power for the next shot</p>
+                        <p><strong>Y / Tab:</strong> change your own character in the menu</p>
+                        <p><strong>Player 1 stick / D-pad:</strong> move menu focus and aim</p>
+                        <p><strong>Start / Esc:</strong> open the system menu</p>
+                      </div>
+                    </section>
+                  </div>
                 </div>
-
-                <section class="glass-panel status-panel">
-                  <div class="panel-heading">
-                    <h2>Controller Lounge</h2>
-                    <p>Each detected pad lights up on contact so you can see who is really holding what.</p>
-                  </div>
-
-                  <div id="controller-status" class="controller-status"></div>
-                </section>
-              </div>
-
-              <div class="menu-right-rail">
-                <section class="glass-panel roster-panel">
-                  <div class="panel-heading">
-                    <h2>Choose Your Crew</h2>
-                    <p>Player 1 moves menu focus. Each player can tap Y on their own controller to rotate heroes.</p>
-                  </div>
-
-                  <div class="player-grid">
-                    <article class="player-card" id="player-card-0">
-                      <div class="player-topline">
-                        <span class="player-label">Player 1</span>
-                        <span class="assignment-pill" id="assignment-pill-0">Waiting for a controller</span>
-                      </div>
-
-                      <div class="portrait-frame">
-                        <div class="portrait-art" id="portrait-0"></div>
-                      </div>
-
-                      <div class="character-copy">
-                        <h3 id="character-name-0">Luna Hare</h3>
-                        <p id="character-title-0">Moonshot Captain</p>
-                      </div>
-
-                      <p class="player-tooltip">Press Y on Player 1's controller to switch heroes.</p>
-                      <p class="ability-line" id="ability-line-0"></p>
-                    </article>
-
-                    <article class="player-card" id="player-card-1">
-                      <div class="player-topline">
-                        <span class="player-label">Player 2</span>
-                        <span class="assignment-pill" id="assignment-pill-1">Waiting for a controller</span>
-                      </div>
-
-                      <div class="portrait-frame">
-                        <div class="portrait-art" id="portrait-1"></div>
-                      </div>
-
-                      <div class="character-copy">
-                        <h3 id="character-name-1">Tempo Fox</h3>
-                        <p id="character-title-1">Bassline Brawler</p>
-                      </div>
-
-                      <p class="player-tooltip">Press Y on Player 2's controller to switch heroes.</p>
-                      <p class="ability-line" id="ability-line-1"></p>
-                    </article>
-                  </div>
-
-                  <div class="map-panel">
-                    <div class="panel-heading panel-heading--tight">
-                      <h3>Pick A Board</h3>
-                      <p>Choose a static layout, or stay random for a new board every round.</p>
-                    </div>
-
-                    <div class="map-grid">
-                      <button class="menu-button map-button" data-action="map-select" data-map-id="random">
-                        <span class="map-button__name">Random</span>
-                        <span class="map-button__copy">Fresh peg soup every round.</span>
-                      </button>
-
-                      <button class="menu-button map-button" data-action="map-select" data-map-id="crown">
-                        <span class="map-button__name">Crown</span>
-                        <span class="map-button__copy">Royal spikes with a packed center.</span>
-                      </button>
-
-                      <button class="menu-button map-button" data-action="map-select" data-map-id="heart">
-                        <span class="map-button__name">Heart</span>
-                        <span class="map-button__copy">A chunky heart with a soft drop.</span>
-                      </button>
-
-                      <button class="menu-button map-button" data-action="map-select" data-map-id="diamond">
-                        <span class="map-button__name">Diamond</span>
-                        <span class="map-button__copy">A clean gem shape with a dense core.</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="menu-actions">
-                    <button id="swap-controllers-button" class="menu-button">Swap Controller Assignments</button>
-                    <button id="start-game-button" class="menu-button menu-button--primary">Start Gepple</button>
-                  </div>
-                </section>
-
-                <section class="glass-panel controls-panel">
-                  <div class="panel-heading">
-                    <h2>How It Plays</h2>
-                  </div>
-
-                  <div class="controls-strip">
-                    <p><strong>A / Space:</strong> launch the shot</p>
-                    <p><strong>Green peg:</strong> store your hero power for the next shot</p>
-                    <p><strong>Y / Tab:</strong> change your own character in the menu</p>
-                    <p><strong>Player 1 stick / D-pad:</strong> move menu focus and aim</p>
-                    <p><strong>Start / Esc:</strong> open the system menu</p>
-                  </div>
-                </section>
               </div>
             </section>
 
@@ -188,6 +192,7 @@
 
                 <div class="system-menu-actions">
                   <button id="system-resume-button" class="menu-button menu-button--primary">Resume Game</button>
+                  <button id="system-main-menu-button" class="menu-button">Exit To Main Menu</button>
                   <button id="system-exit-fullscreen-button" class="menu-button">Exit Full Screen</button>
                   <button id="system-exit-game-button" class="menu-button">Exit Game</button>
                 </div>

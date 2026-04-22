@@ -8,6 +8,7 @@
   const LAUNCH_Y = 94;
   const BALL_RADIUS = 12;
   const BALL_SPEED = 860;
+  const AIM_TURN_SPEED = 1.35;
   const GRAVITY = 690;
   const MAX_PARTICLES = 220;
   const TURN_DELAY = 0.9;
@@ -287,7 +288,7 @@
         return;
       }
 
-      this.turnAim -= input.aimX * deltaTime * 2.4;
+      this.turnAim -= input.aimX * deltaTime * AIM_TURN_SPEED;
       this.turnAim = clamp(this.turnAim, -Math.PI + 0.32, -0.14);
 
       if (!input.launchPressed) {

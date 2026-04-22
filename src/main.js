@@ -8,6 +8,8 @@
     stageWrap: document.getElementById("stage-wrap"),
     gameStage: document.getElementById("game-stage"),
     menuScreen: document.getElementById("menu-screen"),
+    menuShellWrap: document.getElementById("menu-shell-wrap"),
+    menuShell: document.getElementById("menu-shell"),
     hudScreen: document.getElementById("hud-screen"),
     roundOverScreen: document.getElementById("round-over-screen"),
     systemMenuScreen: document.getElementById("system-menu-screen"),
@@ -17,6 +19,7 @@
     playAgainButton: document.getElementById("play-again-button"),
     backToMenuButton: document.getElementById("back-to-menu-button"),
     systemResumeButton: document.getElementById("system-resume-button"),
+    systemMainMenuButton: document.getElementById("system-main-menu-button"),
     systemExitFullscreenButton: document.getElementById("system-exit-fullscreen-button"),
     systemExitGameButton: document.getElementById("system-exit-game-button"),
     systemMenuHeading: document.getElementById("system-menu-heading"),
@@ -53,6 +56,55 @@
   let lastScene = "";
   let isSystemMenuOpen = false;
   let ignoreGameplayInputOnce = false;
+  let menuLayoutFrame = 0;
+
+  function getViewportSize() {
+    if (window.visualViewport) {
+      return {
+        width: window.visualViewport.width,
+        height: window.visualViewport.height,
+      };
+    }
+
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  }
+
+  function fitMenuShell() {
+    if (!dom.menuShell || !dom.menuShellWrap) {
+      return;
+    }
+
+    dom.menuShell.style.transform = "scale(1)";
+
+    const availableWidth = dom.menuShellWrap.clientWidth;
+    const availableHeight = dom.menuShellWrap.clientHeight;
+
+    if (!availableWidth || !availableHeight) {
+      return;
+    }
+
+    const naturalWidth = dom.menuShell.scrollWidth;
+    const naturalHeight = dom.menuShell.scrollHeight;
+    const widthScale = availableWidth / Math.max(1, naturalWidth);
+    const heightScale = availableHeight / Math.max(1, naturalHeight);
+    const scale = Math.min(1, widthScale, heightScale);
+
+    dom.menuShell.style.transform = "scale(" + scale + ")";
+  }
+
+  function scheduleMenuLayoutFit() {
+    if (menuLayoutFrame) {
+      cancelAnimationFrame(menuLayoutFrame);
+    }
+
+    menuLayoutFrame = requestAnimationFrame(function runMenuFit() {
+      menuLayoutFrame = 0;
+      fitMenuShell();
+    });
+  }
 
   function isFullscreenSupported() {
     return Boolean(
@@ -67,11 +119,16 @@
   }
 
   function resizeStage() {
-    const scale = Math.max(0.1, Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT));
+    const viewport = getViewportSize();
+    const safeMargin = 12;
+    const safeWidth = Math.max(320, viewport.width - safeMargin * 2);
+    const safeHeight = Math.max(240, viewport.height - safeMargin * 2);
+    const scale = Math.max(0.1, Math.min(safeWidth / STAGE_WIDTH, safeHeight / STAGE_HEIGHT));
 
     dom.stageWrap.style.width = STAGE_WIDTH * scale + "px";
     dom.stageWrap.style.height = STAGE_HEIGHT * scale + "px";
     dom.gameStage.style.transform = "scale(" + scale + ")";
+    scheduleMenuLayoutFit();
   }
 
   function cycleCharacter(playerIndex, direction) {
@@ -125,6 +182,11 @@
     game.returnToMenu();
     syncScreens();
     focusFirstMenuButton();
+  }
+
+  function exitToMainMenu() {
+    isSystemMenuOpen = false;
+    backToMenu();
   }
 
   function focusFirstMenuButton() {
@@ -344,14 +406,17 @@
 
   function renderSystemMenu() {
     const isPlaying = game.scene === "playing";
+    const canExitToMainMenu = game.scene !== "menu";
     const fullscreenSupported = isFullscreenSupported();
     const fullscreenActive = isFullscreenActive();
 
     dom.systemMenuHeading.textContent = isPlaying ? "Game Menu" : "System Menu";
     dom.systemMenuCopy.textContent = isPlaying
-      ? "The board is paused. Leave full screen, or exit Gepple."
-      : "Leave full screen, or exit Gepple.";
+      ? "The board is paused. Resume, jump back to the main menu, or adjust full screen."
+      : "Jump back to the main menu, adjust full screen, or exit Gepple.";
     dom.systemResumeButton.textContent = isPlaying ? "Resume Game" : "Close Menu";
+    dom.systemMainMenuButton.disabled = !canExitToMainMenu;
+    dom.systemMainMenuButton.textContent = canExitToMainMenu ? "Exit To Main Menu" : "Already On Main Menu";
     dom.systemExitFullscreenButton.disabled = !fullscreenSupported;
 
     if (!fullscreenSupported) {
@@ -519,6 +584,8 @@
       button.classList.toggle("is-selected", isSelected);
       button.setAttribute("aria-pressed", isSelected ? "true" : "false");
     }
+
+    scheduleMenuLayoutFit();
   }
 
   function renderHud(uiState) {
@@ -780,11 +847,17 @@
   dom.playAgainButton.addEventListener("click", startRound);
   dom.backToMenuButton.addEventListener("click", backToMenu);
   dom.systemResumeButton.addEventListener("click", closeSystemMenu);
+  dom.systemMainMenuButton.addEventListener("click", exitToMainMenu);
   dom.systemExitFullscreenButton.addEventListener("click", toggleFullscreenMode);
   dom.systemExitGameButton.addEventListener("click", exitGame);
 
   window.addEventListener("resize", resizeStage);
   document.addEventListener("fullscreenchange", refreshSystemMenuForFullscreenChange);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", resizeStage);
+    window.visualViewport.addEventListener("scroll", resizeStage);
+  }
 
   resizeStage();
   renderMenu();
