@@ -3,10 +3,31 @@
     constructor() {
       this.context = null;
       this.unlocked = false;
+      this.musicTracks = [
+        this.createMusicTrack("audio/soundtrack1.mp3"),
+        this.createMusicTrack("audio/soundtrack2.mp3"),
+      ];
+      this.currentMusicIndex = 0;
+      this.isGameMusicPlaying = false;
+
+      for (const track of this.musicTracks) {
+        track.addEventListener("ended", this.playNextMusicTrack.bind(this));
+      }
+    }
+
+    createMusicTrack(source) {
+      const track = new Audio(source);
+      track.preload = "auto";
+      track.volume = 0.34;
+      return track;
     }
 
     unlock() {
       if (this.unlocked) {
+        if (this.context && this.context.state === "suspended") {
+          this.context.resume();
+        }
+
         return;
       }
 
@@ -18,6 +39,55 @@
 
       this.context = new AudioContextClass();
       this.unlocked = true;
+    }
+
+    playGameMusic() {
+      if (this.musicTracks.length === 0) {
+        return;
+      }
+
+      this.isGameMusicPlaying = true;
+      this.playCurrentMusicTrack();
+    }
+
+    stopGameMusic() {
+      this.isGameMusicPlaying = false;
+      this.currentMusicIndex = 0;
+
+      for (const track of this.musicTracks) {
+        track.pause();
+        track.currentTime = 0;
+      }
+    }
+
+    playCurrentMusicTrack() {
+      const track = this.musicTracks[this.currentMusicIndex];
+
+      if (!track) {
+        return;
+      }
+
+      const playPromise = track.play();
+
+      if (!playPromise || !playPromise.catch) {
+        return;
+      }
+
+      playPromise.catch(
+        function ignoreAutoplayBlock() {
+          this.isGameMusicPlaying = false;
+        }.bind(this)
+      );
+    }
+
+    playNextMusicTrack() {
+      if (!this.isGameMusicPlaying) {
+        return;
+      }
+
+      this.currentMusicIndex = (this.currentMusicIndex + 1) % this.musicTracks.length;
+      this.musicTracks[this.currentMusicIndex].currentTime = 0;
+      this.playCurrentMusicTrack();
     }
 
     playTone(options) {

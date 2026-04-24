@@ -179,6 +179,7 @@
 
   function startRound() {
     audioManager.unlock();
+    audioManager.playGameMusic();
     ignoreGameplayInputOnce = true;
     game.startRound(buildPlayerConfigs(), {
       mapId: selectedMapId,

@@ -224,6 +224,7 @@
       this.activeBalls = [];
       this.particles = [];
       this.toasts = [];
+      this.audioManager.stopGameMusic();
     }
 
     generateNewMap() {
@@ -920,6 +921,7 @@
       this.roundReason = reason;
       this.activeBalls = [];
       this.finalShotActive = false;
+      this.audioManager.stopGameMusic();
 
       let bestScore = -Infinity;
       let winnerIndex = 0;
