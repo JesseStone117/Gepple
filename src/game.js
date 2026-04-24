@@ -8,10 +8,19 @@
   const LAUNCH_Y = 94;
   const BALL_RADIUS = 12;
   const BALL_SPEED = 860;
-  const AIM_TURN_SPEED = 1.35;
+  const AIM_TURN_SPEED = 0.72;
+  const AIM_CURVE_POWER = 1.7;
   const GRAVITY = 690;
   const MAX_PARTICLES = 220;
   const TURN_DELAY = 0.9;
+  const SCORE_MULTIPLIER_STEPS = [
+    { orangeHits: 0, multiplier: 1 },
+    { orangeHits: 10, multiplier: 2 },
+    { orangeHits: 15, multiplier: 3 },
+    { orangeHits: 19, multiplier: 5 },
+    { orangeHits: 22, multiplier: 10 },
+  ];
+  const FINAL_BUCKET_BONUSES = [1000, 2000, 5000, 2000, 1000];
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -19,6 +28,49 @@
 
   function lerp(start, end, amount) {
     return start + (end - start) * amount;
+  }
+
+  function getPreciseAimAmount(rawAimX) {
+    const aimX = clamp(rawAimX, -1, 1);
+    const magnitude = Math.abs(aimX);
+
+    if (magnitude === 0) {
+      return 0;
+    }
+
+    return Math.sign(aimX) * Math.pow(magnitude, AIM_CURVE_POWER);
+  }
+
+  function getScoreMultiplierForOrangeHits(orangeHits) {
+    let activeStep = SCORE_MULTIPLIER_STEPS[0];
+
+    for (const step of SCORE_MULTIPLIER_STEPS) {
+      if (orangeHits < step.orangeHits) {
+        return activeStep.multiplier;
+      }
+
+      activeStep = step;
+    }
+
+    return activeStep.multiplier;
+  }
+
+  function findNextScoreMultiplierStep(orangeHits) {
+    for (const step of SCORE_MULTIPLIER_STEPS) {
+      if (step.orangeHits > orangeHits) {
+        return step;
+      }
+    }
+
+    return null;
+  }
+
+  function formatBucketBonus(bonus) {
+    if (bonus >= 1000) {
+      return bonus / 1000 + "K";
+    }
+
+    return String(bonus);
   }
 
   function traceRoundedRect(context, x, y, width, height, radius) {
@@ -74,6 +126,7 @@
       this.activePlayerIndex = 0;
       this.activeBalls = [];
       this.pegs = [];
+      this.orangeTotal = 0;
       this.orangeRemaining = 0;
       this.turnAim = -Math.PI / 2;
       this.turnDelay = 0;
@@ -83,6 +136,11 @@
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
+      this.finalShotActive = false;
+      this.finalShotOwnerIndex = -1;
+      this.finalBucketBonus = 0;
+      this.finalBucketLabel = "";
+      this.finalBucketOwnerIndex = -1;
 
       this.bucket = {
         x: this.boardBounds.centerX,
@@ -126,6 +184,11 @@
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
+      this.finalShotActive = false;
+      this.finalShotOwnerIndex = -1;
+      this.finalBucketBonus = 0;
+      this.finalBucketLabel = "";
+      this.finalBucketOwnerIndex = -1;
       this.bucket.x = this.boardBounds.centerX;
       this.bucket.direction = 1;
 
@@ -171,6 +234,7 @@
 
       this.mapName = map.name;
       this.pegs = map.pegs;
+      this.orangeTotal = map.orangeCount;
       this.orangeRemaining = map.orangeCount;
     }
 
@@ -186,6 +250,34 @@
       }
 
       return window.GeppleCharacterLookup[player.characterId];
+    }
+
+    getOrangeClaimed() {
+      return Math.max(0, this.orangeTotal - this.orangeRemaining);
+    }
+
+    getScoreMultiplier() {
+      return getScoreMultiplierForOrangeHits(this.getOrangeClaimed());
+    }
+
+    getNextScoreMultiplierStep() {
+      return findNextScoreMultiplierStep(this.getOrangeClaimed());
+    }
+
+    getOrangeNeededForNextMultiplier() {
+      const nextStep = this.getNextScoreMultiplierStep();
+
+      if (!nextStep) {
+        return 0;
+      }
+
+      return Math.max(0, nextStep.orangeHits - this.getOrangeClaimed());
+    }
+
+    hasReserveBalls() {
+      return this.players.some(function hasBalls(player) {
+        return player.ballsRemaining > 0;
+      });
     }
 
     getLaunchVector(speed) {
@@ -261,7 +353,11 @@
     updatePlayingStep(deltaTime, playerInputs) {
       this.screenFlash = Math.max(0, this.screenFlash - deltaTime * 2.3);
       this.cameraShake = Math.max(0, this.cameraShake - deltaTime * 2.6);
-      this.updateBucket(deltaTime);
+
+      if (!this.finalShotActive) {
+        this.updateBucket(deltaTime);
+      }
+
       this.updateParticles(deltaTime);
 
       if (this.turnState === "aiming") {
@@ -288,7 +384,7 @@
         return;
       }
 
-      this.turnAim -= input.aimX * deltaTime * AIM_TURN_SPEED;
+      this.turnAim -= getPreciseAimAmount(input.aimX) * deltaTime * AIM_TURN_SPEED;
       this.turnAim = clamp(this.turnAim, -Math.PI + 0.32, -0.14);
 
       if (!input.launchPressed) {
@@ -309,6 +405,7 @@
       activePlayer.abilityCharged = false;
 
       const character = window.GeppleCharacterLookup[activePlayer.characterId];
+      const isFinalShot = !this.hasReserveBalls();
       const launchVector = this.getLaunchVector(BALL_SPEED);
       const primaryBall = {
         x: this.boardBounds.centerX,
@@ -322,6 +419,7 @@
         homingTimer: 0,
         scoreScale: 1,
         shockwaveReady: false,
+        isFinalShot,
       };
 
       this.activeBalls.push(primaryBall);
@@ -330,8 +428,19 @@
         this.activateStoredAbility(activePlayer, primaryBall);
       }
 
+      if (isFinalShot) {
+        this.finalShotActive = true;
+        this.finalShotOwnerIndex = activePlayer.index;
+      }
+
       this.turnState = "in-flight";
       this.audioManager.playLaunch();
+
+      if (isFinalShot) {
+        this.pushToast(activePlayer.name + " fired the final shot. Land a bottom bucket for bonus score.");
+        return;
+      }
+
       this.pushToast(activePlayer.name + " launched " + character.name + "'s shot.");
     }
 
@@ -341,7 +450,7 @@
 
         this.updateSingleBall(ball, deltaTime);
 
-        if (ball.isRemoved || ball.y - ball.radius > this.height + 80) {
+        if (ball.isRemoved || (!this.finalShotActive && ball.y - ball.radius > this.height + 80)) {
           this.activeBalls.splice(index, 1);
         }
       }
@@ -368,6 +477,8 @@
       if (ball.isRemoved) {
         return;
       }
+
+      this.handleFinalShotFloorBounce(ball);
 
       this.handlePegCollisions(ball);
     }
@@ -425,7 +536,50 @@
       }
     }
 
+    getFinalBuckets() {
+      const gap = 16;
+      const laneLeft = this.boardBounds.left + 28;
+      const laneWidth = this.boardBounds.width - 56;
+      const bucketWidth = (laneWidth - gap * (FINAL_BUCKET_BONUSES.length - 1)) / FINAL_BUCKET_BONUSES.length;
+      const bucketHeight = 46;
+      const bucketBottom = this.height - 10;
+      const bucketTop = bucketBottom - bucketHeight;
+
+      return FINAL_BUCKET_BONUSES.map(function mapBucket(bonus, index) {
+        const left = laneLeft + index * (bucketWidth + gap);
+
+        return {
+          left,
+          right: left + bucketWidth,
+          top: bucketTop,
+          bottom: bucketBottom,
+          width: bucketWidth,
+          height: bucketHeight,
+          bonus,
+          label: formatBucketBonus(bonus),
+          index,
+        };
+      });
+    }
+
+    findFinalBucketAt(x) {
+      const buckets = this.getFinalBuckets();
+
+      for (const bucket of buckets) {
+        if (x >= bucket.left && x <= bucket.right) {
+          return bucket;
+        }
+      }
+
+      return null;
+    }
+
     handleBucketCatch(ball) {
+      if (this.finalShotActive) {
+        this.handleFinalBucketCatch(ball);
+        return;
+      }
+
       const bucketTop = this.bucket.y - this.bucket.height;
       const bucketLeft = this.bucket.x - this.bucket.width / 2;
       const bucketRight = this.bucket.x + this.bucket.width / 2;
@@ -449,6 +603,60 @@
       this.audioManager.playBucketCatch();
       this.spawnBurst(ball.x, bucketTop, "#7df2c5", 16, 160);
       this.pushToast(player.name + " landed the moving bucket and earned one more ball.");
+    }
+
+    handleFinalBucketCatch(ball) {
+      const bucket = this.findFinalBucketAt(ball.x);
+
+      if (!bucket) {
+        return;
+      }
+
+      if (ball.y + ball.radius < bucket.top) {
+        return;
+      }
+
+      if (ball.speedY < 0) {
+        return;
+      }
+
+      const player = this.players[ball.ownerIndex];
+
+      if (!player) {
+        return;
+      }
+
+      player.score += bucket.bonus;
+      ball.isRemoved = true;
+      this.finalBucketBonus = bucket.bonus;
+      this.finalBucketLabel = bucket.label;
+      this.finalBucketOwnerIndex = player.index;
+
+      this.audioManager.playBucketCatch();
+      this.spawnBurst(ball.x, bucket.top, "#ffe27a", 28, 230);
+      this.finishRound(player.name + " landed the " + bucket.label + " final bucket");
+    }
+
+    handleFinalShotFloorBounce(ball) {
+      if (!this.finalShotActive) {
+        return;
+      }
+
+      const floorY = this.height - 8;
+
+      if (ball.y + ball.radius < floorY) {
+        return;
+      }
+
+      ball.y = floorY - ball.radius;
+      ball.speedY = -Math.max(520, Math.abs(ball.speedY) * 0.82);
+      ball.speedX *= 0.98;
+
+      if (Math.abs(ball.speedX) >= 120) {
+        return;
+      }
+
+      ball.speedX = ball.x < this.boardBounds.centerX ? 170 : -170;
     }
 
     handlePegCollisions(ball) {
@@ -495,6 +703,7 @@
 
       let points = 100;
       let particleColor = "#69d1ff";
+      const previousMultiplier = this.getScoreMultiplier();
 
       if (peg.type === "orange") {
         points = 500;
@@ -513,12 +722,17 @@
 
       player.currentShotHits += 1;
       const comboBonus = 1 + (player.currentShotHits - 1) * 0.2;
-      player.score += Math.round(points * comboBonus * ball.scoreScale);
+      const scoreMultiplier = this.getScoreMultiplier();
+      player.score += Math.round(points * comboBonus * ball.scoreScale * scoreMultiplier);
 
       this.audioManager.playPegHit(peg.type);
       this.screenFlash = Math.min(1, this.screenFlash + 0.1);
       this.cameraShake = Math.min(1, this.cameraShake + 0.12);
       this.spawnBurst(peg.x, peg.y, particleColor, peg.type === "orange" ? 18 : 12, 190);
+
+      if (peg.type === "orange" && scoreMultiplier > previousMultiplier) {
+        this.pushToast("Orange multiplier is now " + scoreMultiplier + "x.");
+      }
 
       if (ball.shockwaveReady) {
         ball.shockwaveReady = false;
@@ -686,16 +900,16 @@
         return;
       }
 
+      if (this.finalShotActive) {
+        return;
+      }
+
       if (this.orangeRemaining <= 0) {
         this.finishRound("Cleared the last orange peg");
         return;
       }
 
-      const hasBallsLeft = this.players.some(function checkBalls(player) {
-        return player.ballsRemaining > 0;
-      });
-
-      if (!hasBallsLeft && this.activeBalls.length === 0 && this.turnState !== "switching") {
+      if (!this.hasReserveBalls() && this.activeBalls.length === 0 && this.turnState !== "switching") {
         this.finishRound("Both players ran out of balls");
       }
     }
@@ -705,9 +919,7 @@
       this.turnState = "complete";
       this.roundReason = reason;
       this.activeBalls = [];
-      this.finalShotWin = !this.players.some(function hasReserveBalls(player) {
-        return player.ballsRemaining > 0;
-      });
+      this.finalShotActive = false;
 
       let bestScore = -Infinity;
       let winnerIndex = 0;
@@ -720,10 +932,14 @@
       }
 
       this.winnerIndex = winnerIndex;
+      this.finalShotWin = this.finalBucketBonus > 0;
 
       if (this.finalShotWin) {
+        const bucketOwner = this.players[this.finalBucketOwnerIndex];
+        const bucketOwnerName = bucketOwner ? bucketOwner.name : "The final shot";
+
         this.audioManager.playFinalShotWin();
-        this.pushToast(this.players[winnerIndex].name + " steals the round on the last ball!");
+        this.pushToast(bucketOwnerName + " banked the " + this.finalBucketLabel + " final bucket.");
         return;
       }
 
@@ -736,11 +952,20 @@
         scene: this.scene,
         players: this.players,
         activePlayerIndex: this.activePlayerIndex,
+        orangeTotal: this.orangeTotal,
+        orangeClaimed: this.getOrangeClaimed(),
         orangeRemaining: this.orangeRemaining,
+        scoreMultiplier: this.getScoreMultiplier(),
+        scoreMultiplierSteps: SCORE_MULTIPLIER_STEPS,
+        nextScoreMultiplier: this.getNextScoreMultiplierStep(),
+        orangeNeededForNextMultiplier: this.getOrangeNeededForNextMultiplier(),
         turnState: this.turnState,
         roundReason: this.roundReason,
         winnerIndex: this.winnerIndex,
         finalShotWin: this.finalShotWin,
+        finalBucketBonus: this.finalBucketBonus,
+        finalBucketLabel: this.finalBucketLabel,
+        finalBucketOwnerIndex: this.finalBucketOwnerIndex,
         toasts: this.toasts,
       };
     }
@@ -939,6 +1164,11 @@
     }
 
     renderBucket(context) {
+      if (this.finalShotActive) {
+        this.renderFinalBuckets(context);
+        return;
+      }
+
       const left = this.bucket.x - this.bucket.width / 2;
       const top = this.bucket.y - this.bucket.height;
 
@@ -950,6 +1180,38 @@
 
       context.fillStyle = "rgba(125, 242, 197, 0.34)";
       context.fillRect(left + 18, top + 4, this.bucket.width - 36, this.bucket.height - 8);
+    }
+
+    renderFinalBuckets(context) {
+      const buckets = this.getFinalBuckets();
+      const laneLeft = this.boardBounds.left + 12;
+      const laneWidth = this.boardBounds.width - 24;
+      const laneTop = buckets[0].top - 10;
+
+      context.fillStyle = "rgba(255, 226, 122, 0.09)";
+      context.fillRect(laneLeft, laneTop, laneWidth, buckets[0].height + 18);
+
+      context.font = "700 24px Trebuchet MS, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+
+      for (const bucket of buckets) {
+        const isMiddleBucket = bucket.index === 2;
+
+        traceRoundedRect(context, bucket.left, bucket.top, bucket.width, bucket.height, 14);
+        context.fillStyle = isMiddleBucket ? "rgba(255, 226, 122, 0.38)" : "rgba(255, 255, 255, 0.2)";
+        context.fill();
+
+        traceRoundedRect(context, bucket.left + 8, bucket.top + 7, bucket.width - 16, bucket.height - 14, 10);
+        context.fillStyle = isMiddleBucket ? "rgba(255, 143, 90, 0.34)" : "rgba(125, 242, 197, 0.24)";
+        context.fill();
+
+        context.fillStyle = "#f6fbff";
+        context.fillText("+" + bucket.label, bucket.left + bucket.width / 2, bucket.top + bucket.height / 2);
+      }
+
+      context.textAlign = "start";
+      context.textBaseline = "alphabetic";
     }
 
     renderBalls(context) {

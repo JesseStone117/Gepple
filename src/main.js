@@ -27,6 +27,12 @@
     turnBanner: document.querySelector(".turn-banner"),
     turnIndicator: document.getElementById("turn-indicator"),
     roundSubtitle: document.getElementById("round-subtitle"),
+    orangeProgressCount: document.getElementById("orange-progress-count"),
+    scoreMultiplier: document.getElementById("score-multiplier"),
+    orangeProgressTrack: document.getElementById("orange-progress-track"),
+    orangeProgressFill: document.getElementById("orange-progress-fill"),
+    orangeProgressMarkers: document.getElementById("orange-progress-markers"),
+    orangeProgressDetail: document.getElementById("orange-progress-detail"),
     hudPlayers: [document.getElementById("hud-player-0"), document.getElementById("hud-player-1")],
     portraitTargets: [document.getElementById("portrait-0"), document.getElementById("portrait-1")],
     characterNames: [document.getElementById("character-name-0"), document.getElementById("character-name-1")],
@@ -595,7 +601,7 @@
 
     if (cards.length === 0) {
       dom.controllerStatus.innerHTML =
-        '<article class="controller-card"><div class="controller-card__title"><span>No controllers yet</span><span>Xbox pads welcome</span></div><p class="controller-card__hint">Connect one or two Xbox pads. Gepple will auto-assign them, and you can swap assignments here.</p></article>';
+        '<article class="controller-card"><div class="controller-card__title"><span>No controllers yet</span><span>Xbox pads welcome</span></div><p class="controller-card__hint">Connect one or two Xbox pads. Gepple will highlight the Player 1 primary controller here.</p></article>';
       return;
     }
 
@@ -603,11 +609,12 @@
       .map(function renderCard(pad) {
         const ownerIndex = controllerManager.assignments.indexOf(pad.index);
         const ownerLabel = ownerIndex === -1 ? "Unassigned" : "Player " + (ownerIndex + 1);
-        const isActive = performance.now() - pad.lastActivityAt < 220 ? " is-active" : "";
+        const primaryClass = ownerIndex === 0 ? " is-primary" : "";
+        const primaryText = ownerIndex === 0 ? "Primary controller" : pad.label;
 
         return (
           '<article class="controller-card' +
-          isActive +
+          primaryClass +
           '">' +
           '<div class="controller-card__title">' +
           "<span>Controller " +
@@ -618,7 +625,7 @@
           "</span>" +
           "</div>" +
           '<p class="controller-card__hint">' +
-          pad.label +
+          primaryText +
           "</p>" +
           "</article>"
         );
@@ -651,6 +658,55 @@
     scheduleMenuLayoutFit();
   }
 
+  function renderOrangeProgressMarks(uiState, orangeTotal) {
+    const claimed = uiState.orangeClaimed;
+    const steps = Array.isArray(uiState.scoreMultiplierSteps) ? uiState.scoreMultiplierSteps : [];
+
+    dom.orangeProgressMarkers.innerHTML = steps
+      .map(function renderMarker(step) {
+        const percent = Math.max(0, Math.min(100, (step.orangeHits / orangeTotal) * 100));
+        const reachedClass = step.orangeHits <= claimed ? " is-reached" : "";
+
+        return (
+          '<span class="orange-progress-marker' +
+          reachedClass +
+          '" style="left: ' +
+          percent +
+          '%;"><span>' +
+          step.multiplier +
+          "x</span></span>"
+        );
+      })
+      .join("");
+  }
+
+  function renderOrangeProgress(uiState) {
+    const orangeTotal = Math.max(1, uiState.orangeTotal);
+    const claimed = Math.max(0, Math.min(orangeTotal, uiState.orangeClaimed));
+    const progressPercent = (claimed / orangeTotal) * 100;
+    const nextStep = uiState.nextScoreMultiplier;
+
+    dom.orangeProgressCount.textContent = claimed + " / " + orangeTotal + " orange pegs claimed";
+    dom.scoreMultiplier.textContent = uiState.scoreMultiplier + "x score";
+    dom.orangeProgressFill.style.width = progressPercent + "%";
+    dom.orangeProgressTrack.setAttribute("aria-valuemax", orangeTotal);
+    dom.orangeProgressTrack.setAttribute("aria-valuenow", claimed);
+    renderOrangeProgressMarks(uiState, orangeTotal);
+
+    if (!nextStep) {
+      dom.orangeProgressDetail.textContent = "Max multiplier locked in.";
+      return;
+    }
+
+    dom.orangeProgressDetail.textContent =
+      uiState.orangeNeededForNextMultiplier +
+      " more orange " +
+      (uiState.orangeNeededForNextMultiplier === 1 ? "peg" : "pegs") +
+      " needed for " +
+      nextStep.multiplier +
+      "x.";
+  }
+
   function renderHud(uiState) {
     const activePlayer = uiState.players[uiState.activePlayerIndex];
 
@@ -662,6 +718,7 @@
 
     dom.turnIndicator.textContent = activePlayer.name;
     dom.turnBanner.classList.toggle("is-ability-ready", activeAbilityReady);
+    renderOrangeProgress(uiState);
 
     if (activeAbilityReady) {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Power stores for the next shot.";
@@ -750,29 +807,32 @@
     const winner = uiState.players[uiState.winnerIndex];
     const winnerCharacter = window.GeppleCharacterLookup[winner.characterId];
     const finalShotWin = Boolean(uiState.finalShotWin);
+    const finalBucketOwner = uiState.players[uiState.finalBucketOwnerIndex];
+    const hasFinalBucketBonus = Boolean(uiState.finalBucketBonus);
+    const finalBucketCopy = finalBucketOwner
+      ? finalBucketOwner.name + " landed +" + uiState.finalBucketLabel + " in the final bucket."
+      : "The final bucket bonus was scored.";
 
     dom.resultPanel.classList.toggle("is-final-shot", finalShotWin);
-    dom.resultReason.textContent = finalShotWin ? "Last Shot Heroics" : uiState.roundReason;
+    dom.resultReason.textContent = hasFinalBucketBonus ? "Final Bucket Bonus" : uiState.roundReason;
     dom.winnerHeading.textContent = winner.name + " Wins";
     dom.winnerPortrait.style.backgroundImage =
       "url('" + winnerCharacter.portraitPath + "'), " + winnerCharacter.portraitGradient;
     dom.winnerPortrait.style.backgroundColor = winnerCharacter.accentSoft;
-    dom.winnerBadge.textContent = finalShotWin ? "Last Ball Legend" : winnerCharacter.abilityName;
-    dom.winnerFlair.textContent = finalShotWin
-      ? winnerCharacter.name + " closed the match on the final launch."
+    dom.winnerBadge.textContent = hasFinalBucketBonus ? "Final Score Leader" : winnerCharacter.abilityName;
+    dom.winnerFlair.textContent = hasFinalBucketBonus
+      ? finalBucketCopy
       : winnerCharacter.name + " claims the couch crown in style.";
-    dom.winnerSummary.textContent = finalShotWin
-      ? "No reserve balls left. Winning finish: " +
-        uiState.roundReason +
-        ". Final score: " +
-        winner.score.toLocaleString() +
-        "."
+    dom.winnerSummary.textContent = hasFinalBucketBonus
+      ? "No reserve balls left. " + winner.name + " wins with " + winner.score.toLocaleString() + "."
       : "Final orange clears: " + winner.orangeHits + ". Final score: " + winner.score.toLocaleString() + ".";
 
     dom.scoreboard.innerHTML = uiState.players
       .map(function renderRow(player) {
         const character = window.GeppleCharacterLookup[player.characterId];
         const winnerClass = player.index === uiState.winnerIndex ? " is-winner" : "";
+        const finalBucketText =
+          player.index === uiState.finalBucketOwnerIndex ? " + " + uiState.finalBucketLabel + " final bucket" : "";
 
         return (
           '<article class="score-row' +
@@ -787,7 +847,9 @@
           player.score.toLocaleString() +
           "</strong><p>" +
           player.orangeHits +
-          " orange pegs</p></div>" +
+          " orange pegs" +
+          finalBucketText +
+          "</p></div>" +
           "</article>"
         );
       })

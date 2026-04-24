@@ -29,7 +29,7 @@
                     <section class="glass-panel status-panel">
                       <div class="panel-heading">
                         <h2>Controller Lounge</h2>
-                        <p>Each detected pad lights up on contact so you can see who is really holding what.</p>
+                        <p>The primary controller is highlighted for Player 1 menu control.</p>
                       </div>
 
                       <div id="controller-status" class="controller-status"></div>
@@ -145,6 +145,27 @@
                     <p class="hud-turn-label">Current Turn</p>
                     <h2 id="turn-indicator">Player 1</h2>
                     <p id="round-subtitle">Aim with care.</p>
+                  </article>
+
+                  <article class="orange-progress-card" aria-label="Orange peg multiplier progress">
+                    <div class="orange-progress-topline">
+                      <span id="orange-progress-count">0 / 25 orange pegs claimed</span>
+                      <strong id="score-multiplier">1x score</strong>
+                    </div>
+
+                    <div
+                      class="orange-progress-track"
+                      id="orange-progress-track"
+                      role="progressbar"
+                      aria-valuemin="0"
+                      aria-valuemax="25"
+                      aria-valuenow="0"
+                    >
+                      <div class="orange-progress-fill" id="orange-progress-fill"></div>
+                      <div class="orange-progress-markers" id="orange-progress-markers"></div>
+                    </div>
+
+                    <p class="orange-progress-detail" id="orange-progress-detail">10 more orange pegs to 2x.</p>
                   </article>
 
                   <div class="toast-stack" id="toast-stack"></div>
