@@ -13,6 +13,10 @@
   const GRAVITY = 690;
   const MAX_PARTICLES = 220;
   const TURN_DELAY = 0.9;
+  const LUNA_HOMING_DELAY = 0.42;
+  const LUNA_HOMING_MIN_SPEED = 760;
+  const LUNA_HOMING_TURN_RATE = 9.5;
+  const LUNA_HOMING_CAPTURE_PADDING = 14;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
     { orangeHits: 10, multiplier: 2 },
@@ -26,8 +30,8 @@
     return Math.max(min, Math.min(max, value));
   }
 
-  function lerp(start, end, amount) {
-    return start + (end - start) * amount;
+  function getShortestAngleDelta(fromAngle, toAngle) {
+    return Math.atan2(Math.sin(toAngle - fromAngle), Math.cos(toAngle - fromAngle));
   }
 
   function getPreciseAimAmount(rawAimX) {
@@ -417,7 +421,12 @@
         ownerIndex: activePlayer.index,
         trailColor: character.trailColor,
         color: character.ballColor,
+        guaranteedOrangeHoming: false,
+        homingDelay: 0,
         homingTimer: 0,
+        homingTargetId: null,
+        homingMinSpeed: 0,
+        homingTurnRate: 0,
         scoreScale: 1,
         shockwaveReady: false,
         isFinalShot,
@@ -451,7 +460,10 @@
 
         this.updateSingleBall(ball, deltaTime);
 
-        if (ball.isRemoved || (!this.finalShotActive && ball.y - ball.radius > this.height + 80)) {
+        if (
+          ball.isRemoved ||
+          (!ball.guaranteedOrangeHoming && !this.finalShotActive && ball.y - ball.radius > this.height + 80)
+        ) {
           this.activeBalls.splice(index, 1);
         }
       }
@@ -463,10 +475,7 @@
     }
 
     updateSingleBall(ball, deltaTime) {
-      if (ball.homingTimer > 0) {
-        this.applyHoming(ball, deltaTime);
-        ball.homingTimer -= deltaTime;
-      }
+      this.updateHoming(ball, deltaTime);
 
       ball.speedY += GRAVITY * deltaTime;
       ball.x += ball.speedX * deltaTime;
@@ -480,11 +489,59 @@
       }
 
       this.handleFinalShotFloorBounce(ball);
+      this.handleGuaranteedHomingFloorBounce(ball);
 
       this.handlePegCollisions(ball);
+      this.resolveGuaranteedHomingHit(ball);
     }
 
-    applyHoming(ball, deltaTime) {
+    updateHoming(ball, deltaTime) {
+      if (!ball.guaranteedOrangeHoming && ball.homingTimer <= 0) {
+        return;
+      }
+
+      if (ball.homingDelay > 0) {
+        ball.homingDelay = Math.max(0, ball.homingDelay - deltaTime);
+        return;
+      }
+
+      const target = this.getHomingTarget(ball);
+
+      if (!target) {
+        this.clearHoming(ball);
+        return;
+      }
+
+      this.applyHoming(ball, target, deltaTime);
+
+      if (ball.guaranteedOrangeHoming) {
+        return;
+      }
+
+      ball.homingTimer = Math.max(0, ball.homingTimer - deltaTime);
+    }
+
+    getHomingTarget(ball) {
+      if (ball.homingTargetId) {
+        const currentTarget = this.pegs.find(function findPeg(peg) {
+          return peg.id === ball.homingTargetId && !peg.isHit && peg.type === "orange";
+        });
+
+        if (currentTarget) {
+          return currentTarget;
+        }
+      }
+
+      const target = this.findClosestOrangePeg(ball);
+
+      if (target) {
+        ball.homingTargetId = target.id;
+      }
+
+      return target;
+    }
+
+    findClosestOrangePeg(ball) {
       let target = null;
       let bestDistance = Infinity;
 
@@ -503,17 +560,35 @@
         }
       }
 
-      if (!target) {
-        return;
-      }
+      return target;
+    }
+
+    applyHoming(ball, target, deltaTime) {
+      const turnRate = ball.homingTurnRate || 2.6;
+      const minimumSpeed = ball.homingMinSpeed || 420;
 
       const desiredAngle = Math.atan2(target.y - ball.y, target.x - ball.x);
       const currentAngle = Math.atan2(ball.speedY, ball.speedX);
-      const nextAngle = lerp(currentAngle, desiredAngle, deltaTime * 2.6);
-      const speed = Math.max(420, Math.hypot(ball.speedX, ball.speedY));
+      const angleDelta = getShortestAngleDelta(currentAngle, desiredAngle);
+      const maxTurn = turnRate * deltaTime;
+      const nextAngle = currentAngle + clamp(angleDelta, -maxTurn, maxTurn);
+      const speed = Math.max(minimumSpeed, Math.hypot(ball.speedX, ball.speedY));
 
       ball.speedX = Math.cos(nextAngle) * speed;
       ball.speedY = Math.sin(nextAngle) * speed;
+    }
+
+    clearHoming(ball) {
+      ball.guaranteedOrangeHoming = false;
+      ball.homingDelay = 0;
+      ball.homingTimer = 0;
+      ball.homingTargetId = null;
+      ball.homingMinSpeed = 0;
+      ball.homingTurnRate = 0;
+    }
+
+    shouldProtectGuaranteedHoming(ball) {
+      return ball.guaranteedOrangeHoming && this.orangeRemaining > 0;
     }
 
     handleWallBounce(ball) {
@@ -576,6 +651,10 @@
     }
 
     handleBucketCatch(ball) {
+      if (this.shouldProtectGuaranteedHoming(ball)) {
+        return;
+      }
+
       if (this.finalShotActive) {
         this.handleFinalBucketCatch(ball);
         return;
@@ -660,6 +739,64 @@
       ball.speedX = ball.x < this.boardBounds.centerX ? 170 : -170;
     }
 
+    handleGuaranteedHomingFloorBounce(ball) {
+      if (!ball.guaranteedOrangeHoming || this.finalShotActive) {
+        return;
+      }
+
+      const floorY = this.height - 18;
+
+      if (ball.y + ball.radius < floorY) {
+        return;
+      }
+
+      ball.y = floorY - ball.radius;
+      ball.speedY = -Math.max(520, Math.abs(ball.speedY) * 0.82);
+      ball.speedX *= 0.98;
+    }
+
+    resolveGuaranteedHomingHit(ball) {
+      if (!ball.guaranteedOrangeHoming) {
+        return;
+      }
+
+      if (ball.homingDelay > 0) {
+        return;
+      }
+
+      const target = this.getHomingTarget(ball);
+
+      if (!target) {
+        this.clearHoming(ball);
+        return;
+      }
+
+      const dx = ball.x - target.x;
+      const dy = ball.y - target.y;
+      const distance = Math.hypot(dx, dy);
+      const captureRadius = ball.radius + target.radius + LUNA_HOMING_CAPTURE_PADDING;
+
+      if (distance > captureRadius) {
+        return;
+      }
+
+      const normalX = distance === 0 ? 0 : dx / distance;
+      const normalY = distance === 0 ? -1 : dy / distance;
+      const overlap = Math.max(0, ball.radius + target.radius - distance);
+      const dot = ball.speedX * normalX + ball.speedY * normalY;
+
+      target.isHit = true;
+      target.glow = 1;
+      ball.x += normalX * overlap;
+      ball.y += normalY * overlap;
+      ball.speedX -= 2 * dot * normalX;
+      ball.speedY -= 2 * dot * normalY;
+      ball.speedX *= 0.985;
+      ball.speedY *= 0.985;
+
+      this.handlePegHit(target, ball);
+    }
+
     handlePegCollisions(ball) {
       for (const peg of this.pegs) {
         if (peg.isHit) {
@@ -711,6 +848,7 @@
         this.orangeRemaining -= 1;
         player.orangeHits += 1;
         particleColor = "#ff8f5a";
+        this.clearHoming(ball);
       }
 
       if (peg.type === "green") {
@@ -749,10 +887,13 @@
       player.abilityUsedThisShot = true;
 
       if (character.id === "luna-hare") {
-        primaryBall.homingTimer = 1.9;
+        primaryBall.guaranteedOrangeHoming = true;
+        primaryBall.homingDelay = LUNA_HOMING_DELAY;
+        primaryBall.homingMinSpeed = LUNA_HOMING_MIN_SPEED;
+        primaryBall.homingTurnRate = LUNA_HOMING_TURN_RATE;
 
         this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 20, 180);
-        this.pushToast(character.abilityName + " is bending the next shot into the orange cluster.");
+        this.pushToast(character.abilityName + " will arc into an orange after the launch.");
         this.audioManager.playAbilityUse();
         return;
       }
