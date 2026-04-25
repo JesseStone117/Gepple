@@ -17,6 +17,9 @@
   const LUNA_HOMING_MIN_SPEED = 760;
   const LUNA_HOMING_TURN_RATE = 9.5;
   const LUNA_HOMING_CAPTURE_PADDING = 14;
+  const TRAJECTORY_PREVIEW_STEP = 1 / 120;
+  const TRAJECTORY_PREVIEW_SECONDS = 2.7;
+  const TRAJECTORY_PREVIEW_POINT_INTERVAL = 0.075;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
     { orangeHits: 10, multiplier: 2 },
@@ -1217,32 +1220,195 @@
       context.fill();
     }
 
+    createTrajectoryPreviewBall() {
+      const launchVector = this.getLaunchVector(BALL_SPEED);
+      const ball = {
+        x: this.boardBounds.centerX,
+        y: LAUNCH_Y,
+        radius: BALL_RADIUS,
+        speedX: launchVector.x,
+        speedY: launchVector.y,
+        guaranteedOrangeHoming: false,
+        homingDelay: 0,
+        homingTimer: 0,
+        homingTargetId: null,
+        homingMinSpeed: 0,
+        homingTurnRate: 0,
+      };
+
+      this.configureTrajectoryAbilityPreview(ball);
+      return ball;
+    }
+
+    configureTrajectoryAbilityPreview(ball) {
+      const player = this.getActivePlayer();
+      const character = this.getActiveCharacter();
+
+      if (!player || !character) {
+        return;
+      }
+
+      if (!player.abilityCharged || character.id !== "luna-hare") {
+        return;
+      }
+
+      ball.guaranteedOrangeHoming = true;
+      ball.homingDelay = LUNA_HOMING_DELAY;
+      ball.homingMinSpeed = LUNA_HOMING_MIN_SPEED;
+      ball.homingTurnRate = LUNA_HOMING_TURN_RATE;
+    }
+
+    buildTrajectoryPreview() {
+      const ball = this.createTrajectoryPreviewBall();
+      const points = [{ x: ball.x, y: ball.y }];
+      let elapsed = 0;
+      let nextPointAt = 0;
+
+      while (elapsed < TRAJECTORY_PREVIEW_SECONDS) {
+        elapsed += TRAJECTORY_PREVIEW_STEP;
+        this.updateTrajectoryPreviewBall(ball, TRAJECTORY_PREVIEW_STEP);
+
+        const hitPeg = this.findTrajectoryPegHit(ball);
+
+        if (hitPeg) {
+          points.push({ x: ball.x, y: ball.y });
+          return {
+            points,
+            hitPeg,
+            hitX: ball.x,
+            hitY: ball.y,
+          };
+        }
+
+        if (ball.y - ball.radius > this.height + 80) {
+          break;
+        }
+
+        if (elapsed >= nextPointAt) {
+          points.push({ x: ball.x, y: ball.y });
+          nextPointAt += TRAJECTORY_PREVIEW_POINT_INTERVAL;
+        }
+      }
+
+      return {
+        points,
+        hitPeg: null,
+        hitX: null,
+        hitY: null,
+      };
+    }
+
+    updateTrajectoryPreviewBall(ball, deltaTime) {
+      this.updateHoming(ball, deltaTime);
+
+      ball.speedY += GRAVITY * deltaTime;
+      ball.x += ball.speedX * deltaTime;
+      ball.y += ball.speedY * deltaTime;
+
+      this.handleWallBounce(ball);
+      this.handleGuaranteedHomingFloorBounce(ball);
+    }
+
+    findTrajectoryPegHit(ball) {
+      let hitPeg = null;
+      let bestDistance = Infinity;
+
+      for (const peg of this.pegs) {
+        if (peg.isHit) {
+          continue;
+        }
+
+        const distance = Math.hypot(ball.x - peg.x, ball.y - peg.y);
+        const hitRadius = this.getTrajectoryPegHitRadius(ball, peg);
+
+        if (distance > hitRadius) {
+          continue;
+        }
+
+        if (distance >= bestDistance) {
+          continue;
+        }
+
+        hitPeg = peg;
+        bestDistance = distance;
+      }
+
+      return hitPeg;
+    }
+
+    getTrajectoryPegHitRadius(ball, peg) {
+      const normalRadius = ball.radius + peg.radius;
+
+      if (!ball.guaranteedOrangeHoming || ball.homingDelay > 0) {
+        return normalRadius;
+      }
+
+      if (peg.id !== ball.homingTargetId) {
+        return normalRadius;
+      }
+
+      return normalRadius + LUNA_HOMING_CAPTURE_PADDING;
+    }
+
     renderTrajectory(context) {
       if (this.scene !== "playing" || this.turnState !== "aiming") {
         return;
       }
 
-      let x = this.boardBounds.centerX;
-      let y = LAUNCH_Y;
-      const launchVector = this.getLaunchVector(18);
-      let speedX = launchVector.x;
-      let speedY = launchVector.y;
+      const preview = this.buildTrajectoryPreview();
 
+      context.save();
+      this.renderTrajectoryPath(context, preview.points);
+      this.renderTrajectoryDots(context, preview.points);
+      this.renderTrajectoryHit(context, preview);
+      context.restore();
+    }
+
+    renderTrajectoryPath(context, points) {
+      if (points.length < 2) {
+        return;
+      }
+
+      context.strokeStyle = "rgba(255, 255, 255, 0.16)";
+      context.lineWidth = 3;
+      context.lineCap = "round";
+      context.beginPath();
+      context.moveTo(points[0].x, points[0].y);
+
+      for (let index = 1; index < points.length; index += 1) {
+        context.lineTo(points[index].x, points[index].y);
+      }
+
+      context.stroke();
+    }
+
+    renderTrajectoryDots(context, points) {
       context.fillStyle = "rgba(255, 255, 255, 0.48)";
 
-      for (let index = 0; index < 28; index += 1) {
-        x += speedX;
-        y += speedY;
-        speedY += 0.32;
-
-        if (x < this.boardBounds.left + 12 || x > this.boardBounds.right - 12) {
-          speedX *= -1;
-        }
+      for (let index = 1; index < points.length; index += 1) {
+        const point = points[index];
 
         context.beginPath();
-        context.arc(x, y, Math.max(1.6, 5 - index * 0.14), 0, Math.PI * 2);
+        context.arc(point.x, point.y, Math.max(1.6, 5 - index * 0.14), 0, Math.PI * 2);
         context.fill();
       }
+    }
+
+    renderTrajectoryHit(context, preview) {
+      if (!preview.hitPeg) {
+        return;
+      }
+
+      context.strokeStyle = "rgba(255, 226, 122, 0.92)";
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(preview.hitPeg.x, preview.hitPeg.y, preview.hitPeg.radius + 16, 0, Math.PI * 2);
+      context.stroke();
+
+      context.fillStyle = "rgba(255, 226, 122, 0.86)";
+      context.beginPath();
+      context.arc(preview.hitX, preview.hitY, 5, 0, Math.PI * 2);
+      context.fill();
     }
 
     renderAbilityReadyIndicator(context) {
