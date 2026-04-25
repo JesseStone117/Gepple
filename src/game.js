@@ -965,6 +965,7 @@
         roundReason: this.roundReason,
         winnerIndex: this.winnerIndex,
         finalShotWin: this.finalShotWin,
+        finalShotActive: this.finalShotActive,
         finalBucketBonus: this.finalBucketBonus,
         finalBucketLabel: this.finalBucketLabel,
         finalBucketOwnerIndex: this.finalBucketOwnerIndex,

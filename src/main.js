@@ -33,6 +33,7 @@
     orangeProgressFill: document.getElementById("orange-progress-fill"),
     orangeProgressMarkers: document.getElementById("orange-progress-markers"),
     orangeProgressDetail: document.getElementById("orange-progress-detail"),
+    orangeProgressCard: document.querySelector(".orange-progress-card"),
     hudPlayers: [document.getElementById("hud-player-0"), document.getElementById("hud-player-1")],
     portraitTargets: [document.getElementById("portrait-0"), document.getElementById("portrait-1")],
     characterNames: [document.getElementById("character-name-0"), document.getElementById("character-name-1")],
@@ -695,12 +696,15 @@
     const claimed = Math.max(0, Math.min(orangeTotal, uiState.orangeClaimed));
     const progressPercent = (claimed / orangeTotal) * 100;
     const nextStep = uiState.nextScoreMultiplier;
+    const claimedText = claimed + " of " + orangeTotal + " orange pegs claimed";
 
-    dom.orangeProgressCount.textContent = claimed + " / " + orangeTotal + " orange pegs claimed";
+    dom.orangeProgressCount.textContent = claimed + " / " + orangeTotal + " orange pegs";
     dom.scoreMultiplier.textContent = uiState.scoreMultiplier + "x score";
     dom.orangeProgressFill.style.width = progressPercent + "%";
     dom.orangeProgressTrack.setAttribute("aria-valuemax", orangeTotal);
     dom.orangeProgressTrack.setAttribute("aria-valuenow", claimed);
+    dom.orangeProgressTrack.setAttribute("aria-valuetext", claimedText);
+    dom.orangeProgressCount.title = claimedText;
     renderOrangeProgressMarks(uiState, orangeTotal);
 
     if (!nextStep) {
@@ -710,9 +714,9 @@
 
     dom.orangeProgressDetail.textContent =
       uiState.orangeNeededForNextMultiplier +
-      " more orange " +
+      " orange " +
       (uiState.orangeNeededForNextMultiplier === 1 ? "peg" : "pegs") +
-      " needed for " +
+      " to " +
       nextStep.multiplier +
       "x.";
   }
@@ -728,6 +732,7 @@
 
     dom.turnIndicator.textContent = activePlayer.name;
     dom.turnBanner.classList.toggle("is-ability-ready", activeAbilityReady);
+    dom.orangeProgressCard.classList.toggle("is-hidden", Boolean(uiState.finalShotActive));
     renderOrangeProgress(uiState);
 
     if (activeAbilityReady) {

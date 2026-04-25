@@ -500,7 +500,7 @@ h3 {
 
 .play-center {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
   height: 100%;
 }
 
@@ -539,23 +539,32 @@ h3 {
 }
 
 .orange-progress-card {
-  justify-self: center;
-  width: 560px;
-  margin-top: 12px;
-  padding: 14px 18px 16px;
-  border-radius: 22px;
-  background: rgba(4, 7, 13, 0.62);
-  border: 1px solid rgba(255, 143, 90, 0.2);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 430px;
+  padding: 8px 12px 10px;
+  border-radius: 16px;
+  background: rgba(4, 7, 13, 0.78);
+  border: 1px solid rgba(255, 143, 90, 0.24);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+  transform: translateX(-50%);
+  transition: opacity 160ms ease, visibility 160ms ease, transform 160ms ease;
+}
+
+.orange-progress-card.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(8px);
 }
 
 .orange-progress-topline {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
   color: var(--text-main);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -566,8 +575,8 @@ h3 {
 
 .orange-progress-track {
   position: relative;
-  height: 18px;
-  margin-top: 12px;
+  height: 10px;
+  margin-top: 7px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -584,21 +593,15 @@ h3 {
 
 .orange-progress-marker {
   position: absolute;
-  top: -4px;
+  top: -3px;
   width: 2px;
-  height: 26px;
+  height: 16px;
   transform: translateX(-1px);
   background: rgba(255, 255, 255, 0.36);
 }
 
 .orange-progress-marker span {
-  position: absolute;
-  left: 50%;
-  top: 30px;
-  transform: translateX(-50%);
-  color: rgba(246, 251, 255, 0.72);
-  font-size: 11px;
-  font-weight: 700;
+  display: none;
 }
 
 .orange-progress-marker.is-reached {
@@ -610,9 +613,9 @@ h3 {
 }
 
 .orange-progress-detail {
-  margin: 24px 0 0;
+  margin: 6px 0 0;
   color: var(--text-soft);
-  font-size: 14px;
+  font-size: 12px;
   text-align: center;
 }
 
