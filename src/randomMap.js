@@ -1,5 +1,5 @@
 (function (globalScope) {
-  const PEG_RADIUS = 8;
+  const PEG_RADIUS = 6;
   const TOTAL_PEGS = 96;
   const ORANGE_COUNT = 25;
   const GREEN_COUNT = 2;
@@ -7,7 +7,7 @@
   const AIM_LEFT_EDGE = -0.14;
   const AIM_RIGHT_EDGE = -Math.PI + 0.32;
   const AIMABLE_BUFFER = PEG_RADIUS + 8;
-  const MIN_PEG_SPACING = 48;
+  const MIN_PEG_SPACING = 30;
 
   const MAP_OPTIONS = [
     {
@@ -223,6 +223,43 @@
     return points;
   }
 
+  function addPatternPoint(points, x, y) {
+    points.push({
+      x: Number(x.toFixed(3)),
+      y: Number(y.toFixed(3)),
+    });
+  }
+
+  function addFlower(points, centerX, centerY) {
+    const petals = [
+      { x: 0, y: 0 },
+      { x: 0, y: -0.072 },
+      { x: 0.052, y: 0 },
+      { x: 0, y: 0.072 },
+      { x: -0.052, y: 0 },
+      { x: 0.042, y: -0.052 },
+      { x: 0.042, y: 0.052 },
+      { x: -0.042, y: 0.052 },
+      { x: -0.042, y: -0.052 },
+    ];
+
+    for (const petal of petals) {
+      addPatternPoint(points, centerX + petal.x, centerY + petal.y);
+    }
+  }
+
+  function addStem(points, centerX, yValues) {
+    for (let index = 0; index < yValues.length; index += 1) {
+      addPatternPoint(points, centerX + Math.sin(index * 0.9) * 0.012, yValues[index]);
+    }
+  }
+
+  function addLeaf(points, stemX, stemY, direction) {
+    addPatternPoint(points, stemX + direction * 0.04, stemY - 0.024);
+    addPatternPoint(points, stemX + direction * 0.072, stemY);
+    addPatternPoint(points, stemX + direction * 0.04, stemY + 0.024);
+  }
+
   function buildCrownRows() {
     return [
       { y: 0.14, xs: [0.12, 0.2, 0.28, 0.38, 0.5, 0.62, 0.72, 0.8] },
@@ -283,19 +320,62 @@
     ];
   }
 
-  function buildGardenRows() {
-    return [
-      { y: 0.14, xs: [0.18, 0.28, 0.4, 0.5, 0.6, 0.72, 0.82, 0.92] },
-      { y: 0.22, xs: [0.08, 0.18, 0.28, 0.4, 0.48, 0.56, 0.64, 0.76, 0.86, 0.96] },
-      { y: 0.3, xs: [0.08, 0.18, 0.3, 0.4, 0.5, 0.6, 0.7, 0.82, 0.92, 0.98] },
-      { y: 0.38, xs: [0.1, 0.22, 0.34, 0.44, 0.5, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.46, xs: [0.08, 0.2, 0.32, 0.42, 0.5, 0.58, 0.68, 0.8, 0.92, 0.98] },
-      { y: 0.54, xs: [0.1, 0.22, 0.34, 0.44, 0.5, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.62, xs: [0.08, 0.18, 0.3, 0.4, 0.5, 0.6, 0.7, 0.82, 0.92, 0.98] },
-      { y: 0.7, xs: [0.1, 0.22, 0.34, 0.46, 0.54, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.78, xs: [0.14, 0.26, 0.38, 0.48, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.86, xs: [0.08, 0.2, 0.32, 0.44, 0.5, 0.56, 0.68, 0.8, 0.92, 0.98] },
+  function buildGardenPoints() {
+    const points = [];
+    const accentPoints = [
+      [0.1, 0.72],
+      [0.14, 0.76],
+      [0.18, 0.8],
+      [0.23, 0.84],
+      [0.3, 0.83],
+      [0.7, 0.83],
+      [0.77, 0.84],
+      [0.82, 0.8],
+      [0.86, 0.76],
+      [0.9, 0.72],
+      [0.12, 0.4],
+      [0.15, 0.47],
+      [0.12, 0.54],
+      [0.88, 0.54],
+      [0.85, 0.47],
+      [0.88, 0.4],
+      [0.34, 0.23],
+      [0.42, 0.2],
+      [0.58, 0.2],
+      [0.66, 0.23],
+      [0.36, 0.54],
+      [0.64, 0.54],
+      [0.34, 0.74],
+      [0.66, 0.74],
+      [0.37, 0.88],
+      [0.63, 0.88],
+      [0.44, 0.58],
+      [0.56, 0.58],
+      [0.4, 0.64],
+      [0.6, 0.64],
     ];
+
+    addFlower(points, 0.24, 0.33);
+    addFlower(points, 0.5, 0.42);
+    addFlower(points, 0.76, 0.33);
+    addFlower(points, 0.5, 0.7);
+
+    addStem(points, 0.24, [0.46, 0.53, 0.6, 0.67, 0.74]);
+    addStem(points, 0.76, [0.46, 0.53, 0.6, 0.67, 0.74]);
+    addStem(points, 0.5, [0.82, 0.88]);
+
+    addLeaf(points, 0.24, 0.55, 1);
+    addLeaf(points, 0.24, 0.68, -1);
+    addLeaf(points, 0.76, 0.55, -1);
+    addLeaf(points, 0.76, 0.68, 1);
+    addLeaf(points, 0.5, 0.85, -1);
+    addLeaf(points, 0.5, 0.85, 1);
+
+    for (const accentPoint of accentPoints) {
+      addPatternPoint(points, accentPoint[0], accentPoint[1]);
+    }
+
+    return points;
   }
 
   function buildClockworkRows() {
@@ -345,10 +425,6 @@
       return buildOrbitRows();
     }
 
-    if (mapId === "garden") {
-      return buildGardenRows();
-    }
-
     if (mapId === "clockwork") {
       return buildClockworkRows();
     }
@@ -358,6 +434,14 @@
     }
 
     return [];
+  }
+
+  function getPresetPoints(mapId) {
+    if (mapId === "garden") {
+      return buildGardenPoints();
+    }
+
+    return createPointsFromRows(getPresetRows(mapId));
   }
 
   function generateRandomCandidates(boardBounds, random) {
@@ -410,8 +494,7 @@
   }
 
   function createPresetLayout(boardBounds, mapId) {
-    const rows = getPresetRows(mapId);
-    const points = createPointsFromRows(rows);
+    const points = getPresetPoints(mapId);
 
     return points.map(function mapPoint(point) {
       return normalizePatternPoint(boardBounds, point);

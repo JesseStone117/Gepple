@@ -1675,7 +1675,7 @@
 
         context.fillStyle = glow;
         context.beginPath();
-        context.arc(peg.x, peg.y, peg.radius + 10, 0, Math.PI * 2);
+        context.arc(peg.x, peg.y, peg.radius + 8, 0, Math.PI * 2);
         context.fill();
 
         context.fillStyle = fillStyle;
@@ -1685,7 +1685,7 @@
 
         context.fillStyle = "rgba(255, 255, 255, 0.44)";
         context.beginPath();
-        context.arc(peg.x - 4, peg.y - 5, peg.radius * 0.35, 0, Math.PI * 2);
+        context.arc(peg.x - peg.radius * 0.5, peg.y - peg.radius * 0.58, peg.radius * 0.35, 0, Math.PI * 2);
         context.fill();
       }
     }
