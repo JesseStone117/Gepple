@@ -25,6 +25,7 @@
   const LAST_ORANGE_TIME_SCALE = 0.16;
   const LAST_ORANGE_CAMERA_SCALE = 1.54;
   const LAST_ORANGE_CAMERA_SPEED = 1.9;
+  const MOVING_CATCHER_SCORE_BONUS = 5000;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
     { orangeHits: 10, multiplier: 2 },
@@ -743,11 +744,11 @@
         return;
       }
 
-      player.ballsRemaining += 1;
+      player.score += MOVING_CATCHER_SCORE_BONUS;
       ball.isRemoved = true;
       this.audioManager.playBucketCatch();
       this.spawnBurst(ball.x, bucketTop, "#7df2c5", 16, 160);
-      this.pushToast(player.name + " landed the moving bucket and earned one more ball.");
+      this.pushToast(player.name + " landed the moving catcher for +5K.");
     }
 
     handleFinalBucketCatch(ball) {
