@@ -495,6 +495,9 @@
         homingTurnRate: 0,
         scoreScale: 1,
         shockwaveReady: false,
+        prismLinkReady: false,
+        drillHitsRemaining: 0,
+        tideReboundReady: false,
         isFinalShot,
       };
 
@@ -556,6 +559,7 @@
 
       this.handleFinalShotFloorBounce(ball);
       this.handleGuaranteedHomingFloorBounce(ball);
+      this.handleTideRebound(ball);
 
       this.handlePegCollisions(ball);
       this.resolveGuaranteedHomingHit(ball);
@@ -607,7 +611,7 @@
       return target;
     }
 
-    findClosestOrangePeg(ball) {
+    findClosestOrangePeg(source) {
       let target = null;
       let bestDistance = Infinity;
 
@@ -616,8 +620,8 @@
           continue;
         }
 
-        const dx = peg.x - ball.x;
-        const dy = peg.y - ball.y;
+        const dx = peg.x - source.x;
+        const dy = peg.y - source.y;
         const distance = Math.hypot(dx, dy);
 
         if (distance < bestDistance) {
@@ -821,6 +825,27 @@
       ball.speedX *= 0.98;
     }
 
+    handleTideRebound(ball) {
+      if (!ball.tideReboundReady || this.finalShotActive) {
+        return;
+      }
+
+      const floorY = this.height - 18;
+
+      if (ball.y + ball.radius < floorY || ball.speedY < 0) {
+        return;
+      }
+
+      ball.tideReboundReady = false;
+      ball.y = floorY - ball.radius;
+      ball.speedY = -Math.max(680, Math.abs(ball.speedY) * 0.88);
+      ball.speedX *= 0.9;
+
+      this.spawnBurst(ball.x, floorY, "#59e0ff", 24, 210);
+      this.pushToast("Tide Rebound kicked the shot back into play.");
+      this.audioManager.playAbilityUse();
+    }
+
     resolveGuaranteedHomingHit(ball) {
       if (!ball.guaranteedOrangeHoming) {
         return;
@@ -878,6 +903,11 @@
           continue;
         }
 
+        if (ball.drillHitsRemaining > 0) {
+          this.handleDrillPegCollision(ball, peg, overlap);
+          break;
+        }
+
         peg.isHit = true;
         peg.glow = 1;
 
@@ -896,6 +926,22 @@
         this.handlePegHit(peg, ball);
         break;
       }
+    }
+
+    handleDrillPegCollision(ball, peg, overlap) {
+      const speed = Math.max(1, Math.hypot(ball.speedX, ball.speedY));
+      const moveDistance = Math.max(2, overlap);
+
+      peg.isHit = true;
+      peg.glow = 1;
+      ball.x += (ball.speedX / speed) * moveDistance;
+      ball.y += (ball.speedY / speed) * moveDistance;
+      ball.speedX *= 0.985;
+      ball.speedY *= 0.985;
+      ball.drillHitsRemaining -= 1;
+
+      this.handlePegHit(peg, ball);
+      this.spawnBurst(ball.x, ball.y, "#d8a24a", 12, 170);
     }
 
     handlePegHit(peg, ball) {
@@ -948,6 +994,11 @@
         this.resolveShockwave(ball, 116);
         ball.speedY = Math.min(ball.speedY, -320);
         this.spawnBurst(ball.x, ball.y, "#ff8f5a", 22, 220);
+      }
+
+      if (ball.prismLinkReady) {
+        ball.prismLinkReady = false;
+        this.resolvePrismLink(ball, peg);
       }
     }
 
@@ -1011,6 +1062,32 @@
         this.audioManager.playAbilityUse();
         return;
       }
+
+      if (character.id === "prism-raven") {
+        primaryBall.prismLinkReady = true;
+        this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 22, 210);
+        this.pushToast(character.abilityName + " will beam the first hit into an orange peg.");
+        this.audioManager.playAbilityUse();
+        return;
+      }
+
+      if (character.id === "bore-mole") {
+        primaryBall.drillHitsRemaining = 3;
+        primaryBall.speedX *= 1.04;
+        primaryBall.speedY *= 1.04;
+        this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 24, 220);
+        this.pushToast(character.abilityName + " will drill through the next three pegs.");
+        this.audioManager.playAbilityUse();
+        return;
+      }
+
+      if (character.id === "marina-seal") {
+        primaryBall.tideReboundReady = true;
+        this.spawnBurst(primaryBall.x, primaryBall.y, character.accent, 22, 190);
+        this.pushToast(character.abilityName + " will save this shot from the gutter once.");
+        this.audioManager.playAbilityUse();
+        return;
+      }
     }
 
     resolveShockwave(ball, radius) {
@@ -1027,6 +1104,34 @@
 
         peg.isHit = true;
         this.handlePegHit(peg, ball);
+      }
+    }
+
+    resolvePrismLink(ball, sourcePeg) {
+      const target = this.findClosestOrangePeg(sourcePeg);
+
+      if (!target) {
+        return;
+      }
+
+      target.isHit = true;
+      target.glow = 1;
+
+      this.spawnPrismLinkBurst(sourcePeg, target);
+      this.handlePegHit(target, ball);
+      this.pushToast("Prism Link claimed a nearby orange peg.");
+    }
+
+    spawnPrismLinkBurst(sourcePeg, targetPeg) {
+      const steps = 7;
+
+      for (let index = 0; index <= steps; index += 1) {
+        const progress = index / steps;
+        const x = sourcePeg.x + (targetPeg.x - sourcePeg.x) * progress;
+        const y = sourcePeg.y + (targetPeg.y - sourcePeg.y) * progress;
+        const color = index % 2 === 0 ? "#b06cff" : "#76eeff";
+
+        this.spawnBurst(x, y, color, 3, 120);
       }
     }
 
