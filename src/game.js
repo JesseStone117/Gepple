@@ -22,6 +22,9 @@
   const TRAJECTORY_PREVIEW_STEP = 1 / 120;
   const TRAJECTORY_PREVIEW_SECONDS = 2.7;
   const TRAJECTORY_PREVIEW_POINT_INTERVAL = 0.075;
+  const LAST_ORANGE_TIME_SCALE = 0.16;
+  const LAST_ORANGE_CAMERA_SCALE = 1.54;
+  const LAST_ORANGE_CAMERA_SPEED = 1.9;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
     { orangeHits: 10, multiplier: 2 },
@@ -150,6 +153,11 @@
       this.finalBucketBonus = 0;
       this.finalBucketLabel = "";
       this.finalBucketOwnerIndex = -1;
+      this.lastOrangeCelebrationActive = false;
+      this.lastOrangeBall = null;
+      this.lastOrangeCameraProgress = 0;
+      this.lastOrangeFocusX = this.boardBounds.centerX;
+      this.lastOrangeFocusY = this.boardBounds.bottom;
 
       this.bucket = {
         x: this.boardBounds.centerX,
@@ -198,6 +206,11 @@
       this.finalBucketBonus = 0;
       this.finalBucketLabel = "";
       this.finalBucketOwnerIndex = -1;
+      this.lastOrangeCelebrationActive = false;
+      this.lastOrangeBall = null;
+      this.lastOrangeCameraProgress = 0;
+      this.lastOrangeFocusX = this.boardBounds.centerX;
+      this.lastOrangeFocusY = this.boardBounds.bottom;
       this.bucket.x = this.boardBounds.centerX;
       this.bucket.direction = 1;
 
@@ -233,6 +246,9 @@
       this.activeBalls = [];
       this.particles = [];
       this.toasts = [];
+      this.lastOrangeCelebrationActive = false;
+      this.lastOrangeBall = null;
+      this.lastOrangeCameraProgress = 0;
       this.audioManager.stopGameMusic();
     }
 
@@ -321,6 +337,7 @@
     update(deltaTime, playerInputs) {
       this.updateBackground(deltaTime);
       this.updateToasts(deltaTime);
+      this.updateLastOrangeCamera(deltaTime);
 
       if (this.scene !== "playing") {
         this.render();
@@ -328,7 +345,8 @@
       }
 
       const step = 1 / 120;
-      let remaining = Math.min(deltaTime, 1 / 24);
+      const gameplayDeltaTime = deltaTime * this.getGameplayTimeScale();
+      let remaining = Math.min(gameplayDeltaTime, 1 / 24);
 
       while (remaining > 0) {
         const currentStep = Math.min(step, remaining);
@@ -358,6 +376,48 @@
       this.toasts = this.toasts.filter(function keepToast(toast) {
         return toast.life > 0;
       });
+    }
+
+    getGameplayTimeScale() {
+      if (this.lastOrangeCelebrationActive) {
+        return LAST_ORANGE_TIME_SCALE;
+      }
+
+      return 1;
+    }
+
+    updateLastOrangeCamera(deltaTime) {
+      const targetProgress = this.lastOrangeCelebrationActive ? 1 : 0;
+      const nextProgress =
+        this.lastOrangeCameraProgress +
+        (targetProgress - this.lastOrangeCameraProgress) * Math.min(1, deltaTime * LAST_ORANGE_CAMERA_SPEED);
+
+      this.lastOrangeCameraProgress = nextProgress;
+
+      if (!this.lastOrangeCelebrationActive) {
+        return;
+      }
+
+      const focusBall = this.getLastOrangeFocusBall();
+
+      if (!focusBall) {
+        return;
+      }
+
+      this.lastOrangeFocusX = focusBall.x;
+      this.lastOrangeFocusY = focusBall.y;
+    }
+
+    getLastOrangeFocusBall() {
+      if (this.lastOrangeBall && this.activeBalls.includes(this.lastOrangeBall)) {
+        return this.lastOrangeBall;
+      }
+
+      if (this.activeBalls.length === 0) {
+        return null;
+      }
+
+      return this.activeBalls[0];
     }
 
     updatePlayingStep(deltaTime, playerInputs) {
@@ -854,6 +914,10 @@
         player.orangeHits += 1;
         particleColor = "#ff8f5a";
         this.clearHoming(ball);
+
+        if (this.orangeRemaining <= 0) {
+          this.startLastOrangeCelebration(ball);
+        }
       }
 
       if (peg.type === "green") {
@@ -884,6 +948,20 @@
         ball.speedY = Math.min(ball.speedY, -320);
         this.spawnBurst(ball.x, ball.y, "#ff8f5a", 22, 220);
       }
+    }
+
+    startLastOrangeCelebration(ball) {
+      if (this.lastOrangeCelebrationActive) {
+        return;
+      }
+
+      this.lastOrangeCelebrationActive = true;
+      this.lastOrangeBall = ball;
+      this.lastOrangeFocusX = ball.x;
+      this.lastOrangeFocusY = ball.y;
+      this.screenFlash = Math.min(1, this.screenFlash + 0.45);
+      this.cameraShake = Math.min(1, this.cameraShake + 0.35);
+      this.pushToast("Last orange! Follow the shot to the buckets.");
     }
 
     activateStoredAbility(player, primaryBall) {
@@ -1051,6 +1129,11 @@
         return;
       }
 
+      if (this.lastOrangeCelebrationActive) {
+        this.finishLastOrangeCelebrationIfReady();
+        return;
+      }
+
       if (this.orangeRemaining <= 0) {
         this.finishRound("Cleared the last orange peg");
         return;
@@ -1061,12 +1144,22 @@
       }
     }
 
+    finishLastOrangeCelebrationIfReady() {
+      if (this.activeBalls.length > 0) {
+        return;
+      }
+
+      this.finishRound("Cleared the last orange peg");
+    }
+
     finishRound(reason) {
       this.scene = "round-over";
       this.turnState = "complete";
       this.roundReason = reason;
       this.activeBalls = [];
       this.finalShotActive = false;
+      this.lastOrangeCelebrationActive = false;
+      this.lastOrangeBall = null;
       this.audioManager.stopGameMusic();
 
       let bestScore = -Infinity;
@@ -1149,9 +1242,18 @@
     }
 
     applyGameplayRenderScale(context) {
-      context.translate(this.boardBounds.centerX, GAMEPLAY_RENDER_ORIGIN_Y);
-      context.scale(GAMEPLAY_RENDER_SCALE, GAMEPLAY_RENDER_SCALE);
-      context.translate(-this.boardBounds.centerX, -GAMEPLAY_RENDER_ORIGIN_Y);
+      const cameraProgress = this.lastOrangeCameraProgress;
+      const focusX = this.lastOrangeFocusX;
+      const focusY = this.lastOrangeFocusY;
+      const anchorX = this.boardBounds.centerX;
+      const anchorY = GAMEPLAY_RENDER_ORIGIN_Y + (this.height * 0.54 - GAMEPLAY_RENDER_ORIGIN_Y) * cameraProgress;
+      const zoom = GAMEPLAY_RENDER_SCALE + (LAST_ORANGE_CAMERA_SCALE - GAMEPLAY_RENDER_SCALE) * cameraProgress;
+      const cameraFocusX = this.boardBounds.centerX + (focusX - this.boardBounds.centerX) * cameraProgress;
+      const cameraFocusY = GAMEPLAY_RENDER_ORIGIN_Y + (focusY - GAMEPLAY_RENDER_ORIGIN_Y) * cameraProgress;
+
+      context.translate(anchorX, anchorY);
+      context.scale(zoom, zoom);
+      context.translate(-cameraFocusX, -cameraFocusY);
     }
 
     renderBackground(context) {
