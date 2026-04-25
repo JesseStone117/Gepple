@@ -541,7 +541,7 @@ h3 {
 .orange-progress-card {
   position: absolute;
   left: 50%;
-  bottom: 8px;
+  bottom: 10px;
   width: 430px;
   padding: 8px 12px 10px;
   border-radius: 16px;
@@ -665,7 +665,7 @@ h3 {
   justify-items: center;
   align-self: end;
   gap: 10px;
-  padding-bottom: 10px;
+  padding-bottom: 88px;
 }
 
 .toast-card {

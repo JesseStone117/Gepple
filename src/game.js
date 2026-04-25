@@ -1,6 +1,8 @@
 (function () {
   const GAME_WIDTH = 1600;
   const GAME_HEIGHT = 900;
+  const GAMEPLAY_RENDER_SCALE = 0.91;
+  const GAMEPLAY_RENDER_ORIGIN_Y = 38;
   const BOARD_LEFT = 292;
   const BOARD_RIGHT = 1308;
   const BOARD_TOP = 152;
@@ -1120,6 +1122,8 @@
     render() {
       const context = this.context;
       context.clearRect(0, 0, this.width, this.height);
+
+      this.renderBackground(context);
       context.save();
 
       if (this.cameraShake > 0) {
@@ -1127,7 +1131,7 @@
         context.translate((Math.random() - 0.5) * shakeAmount, (Math.random() - 0.5) * shakeAmount);
       }
 
-      this.renderBackground(context);
+      this.applyGameplayRenderScale(context);
       this.renderBoardFrame(context);
       this.renderLauncher(context);
       this.renderAbilityReadyIndicator(context);
@@ -1136,13 +1140,18 @@
       this.renderBucket(context);
       this.renderBalls(context);
       this.renderParticles(context);
+      context.restore();
 
       if (this.screenFlash > 0) {
         context.fillStyle = "rgba(255, 255, 255, " + this.screenFlash * 0.12 + ")";
         context.fillRect(0, 0, this.width, this.height);
       }
+    }
 
-      context.restore();
+    applyGameplayRenderScale(context) {
+      context.translate(this.boardBounds.centerX, GAMEPLAY_RENDER_ORIGIN_Y);
+      context.scale(GAMEPLAY_RENDER_SCALE, GAMEPLAY_RENDER_SCALE);
+      context.translate(-this.boardBounds.centerX, -GAMEPLAY_RENDER_ORIGIN_Y);
     }
 
     renderBackground(context) {
