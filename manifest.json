@@ -1,0 +1,15 @@
+{
+  "version": "2026.04.24.3",
+  "checkIntervalMs": 4000,
+  "styles": [
+    "styles.css"
+  ],
+  "scripts": [
+    "src/characters.js",
+    "src/randomMap.js",
+    "src/audioManager.js",
+    "src/controllerManager.js",
+    "src/game.js",
+    "src/main.js"
+  ]
+}

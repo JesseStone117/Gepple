@@ -55,6 +55,7 @@
   const audioManager = new window.GeppleAudioManager();
   const controllerManager = new window.GeppleControllerManager();
   const game = new window.GeppleGame(canvas, audioManager);
+  window.GeppleGameInstance = game;
 
   let selectedCharacterIndices = [0, 1];
   let selectedMapId = "random";
@@ -65,6 +66,14 @@
   let menuLayoutFrame = 0;
   let focusRetryFrame = 0;
   let focusRetryTimeout = 0;
+
+  function getAssetPath(path) {
+    if (window.GeppleAssetPath) {
+      return window.GeppleAssetPath(path);
+    }
+
+    return path;
+  }
 
   function getViewportSize() {
     if (window.visualViewport) {
@@ -645,7 +654,7 @@
       dom.abilityLines[playerIndex].textContent = character.abilityName + ": " + character.abilityDescription;
       dom.assignmentPills[playerIndex].textContent = controllerManager.getAssignmentLabel(playerIndex);
       dom.portraitTargets[playerIndex].style.backgroundImage =
-        "url('" + character.portraitPath + "'), " + character.portraitGradient;
+        "url('" + getAssetPath(character.portraitPath) + "'), " + character.portraitGradient;
       dom.portraitTargets[playerIndex].style.backgroundColor = character.accentSoft;
     }
 
@@ -761,7 +770,7 @@
         "</div>" +
         '<div class="portrait-frame portrait-frame--hud">' +
         '<div class="portrait-art" style="background-image: url(\'' +
-        character.portraitPath +
+        getAssetPath(character.portraitPath) +
         "'), " +
         character.portraitGradient +
         "; background-color: " +
@@ -818,7 +827,7 @@
     dom.resultReason.textContent = hasFinalBucketBonus ? "Final Bucket Bonus" : uiState.roundReason;
     dom.winnerHeading.textContent = winner.name + " Wins";
     dom.winnerPortrait.style.backgroundImage =
-      "url('" + winnerCharacter.portraitPath + "'), " + winnerCharacter.portraitGradient;
+      "url('" + getAssetPath(winnerCharacter.portraitPath) + "'), " + winnerCharacter.portraitGradient;
     dom.winnerPortrait.style.backgroundColor = winnerCharacter.accentSoft;
     dom.winnerBadge.textContent = hasFinalBucketBonus ? "Final Score Leader" : winnerCharacter.abilityName;
     dom.winnerFlair.textContent = hasFinalBucketBonus

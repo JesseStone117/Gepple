@@ -16,7 +16,8 @@
     }
 
     createMusicTrack(source) {
-      const track = new Audio(source);
+      const trackSource = window.GeppleAssetPath ? window.GeppleAssetPath(source) : source;
+      const track = new Audio(trackSource);
       track.preload = "auto";
       track.volume = 0.34;
       return track;

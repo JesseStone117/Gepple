@@ -4,7 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gepple</title>
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #08111f;
+        color: #f6fbff;
+      }
+    </style>
   </head>
   <body>
     <div class="viewport-shell">
@@ -224,11 +231,39 @@
       </div>
     </div>
 
-    <script src="src/characters.js"></script>
-    <script src="src/randomMap.js"></script>
-    <script src="src/audioManager.js"></script>
-    <script src="src/controllerManager.js"></script>
-    <script src="src/game.js"></script>
-    <script src="src/main.js"></script>
+    <script>
+      (function loadUpdateManager() {
+        const updateManagerPath = "src/updateManager.js?bootstrap=" + Date.now();
+
+        function runUpdateManager(source) {
+          const script = document.createElement("script");
+          script.textContent = source + "\n//# sourceURL=" + updateManagerPath;
+          document.body.appendChild(script);
+        }
+
+        function loadWithScriptTag() {
+          const script = document.createElement("script");
+          script.src = updateManagerPath;
+          script.async = false;
+          document.body.appendChild(script);
+        }
+
+        if (!window.fetch) {
+          loadWithScriptTag();
+          return;
+        }
+
+        fetch(updateManagerPath, { cache: "no-store" })
+          .then(function handleResponse(response) {
+            if (!response.ok) {
+              throw new Error("Could not load update manager.");
+            }
+
+            return response.text();
+          })
+          .then(runUpdateManager)
+          .catch(loadWithScriptTag);
+      })();
+    </script>
   </body>
 </html>

@@ -9,8 +9,9 @@ Gepple is a browser-first couch co-op prototype inspired by Peggle.
 - Gamepad detection with clear controller cards
 - A menu button to swap which controller belongs to which player
 - Three playable characters with different green-peg powers
-- Synthesized sound effects with no external audio files
+- Synthesized sound effects plus looping gameplay soundtrack files
 - A moving bonus bucket, score tracking, and a round winner screen
+- Manifest-driven auto updates while the game is open
 
 ## How to run it
 
@@ -22,6 +23,11 @@ Examples:
 - `npx serve .`
 
 Then open the served page in a browser.
+
+## Updating a running game
+
+Gepple checks `manifest.json` while it is open. When you ship a change, bump the manifest `version`.
+Open clients will notice the new version, clear old Gepple-managed caches, and reload through cache-busted assets.
 
 ## Controls
 
@@ -40,3 +46,5 @@ Then open the served page in a browser.
 - `src/audioManager.js`: lightweight synthesized sound effects
 - `src/game.js`: physics, scoring, turns, rendering, and abilities
 - `src/main.js`: UI wiring and app boot
+- `src/updateManager.js`: manifest loading, cache-busting, and auto-update checks
+- `manifest.json`: current app version and load order
