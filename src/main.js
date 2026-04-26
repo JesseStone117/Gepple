@@ -50,6 +50,7 @@
     resultReason: document.getElementById("result-reason"),
     scoreboard: document.getElementById("scoreboard"),
     toastStack: document.getElementById("toast-stack"),
+    turnLabel: document.querySelector(".hud-turn-label"),
   };
 
   const canvas = document.getElementById("game-canvas");
@@ -64,6 +65,7 @@
   let lastScene = "";
   let isSystemMenuOpen = false;
   let ignoreGameplayInputOnce = false;
+  let isStartingRound = false;
   let menuLayoutFrame = 0;
   let focusRetryFrame = 0;
   let focusRetryTimeout = 0;
@@ -187,14 +189,34 @@
     });
   }
 
-  function startRound() {
+  async function startRound() {
+    if (isStartingRound) {
+      return;
+    }
+
+    isStartingRound = true;
+    setRoundStartButtonsDisabled(true);
     audioManager.unlock();
-    audioManager.playGameMusic();
     ignoreGameplayInputOnce = true;
-    game.startRound(buildPlayerConfigs(), {
-      mapId: selectedMapId,
-    });
-    syncScreens();
+
+    try {
+      const roundStarted = await game.startRound(buildPlayerConfigs(), {
+        mapId: selectedMapId,
+      });
+
+      if (roundStarted) {
+        audioManager.playGameMusic();
+      }
+    } finally {
+      isStartingRound = false;
+      setRoundStartButtonsDisabled(false);
+      syncScreens();
+    }
+  }
+
+  function setRoundStartButtonsDisabled(isDisabled) {
+    dom.startGameButton.disabled = isDisabled;
+    dom.playAgainButton.disabled = isDisabled;
   }
 
   function backToMenu() {
@@ -475,7 +497,7 @@
   }
 
   function renderSystemMenu() {
-    const isPlaying = game.scene === "playing";
+    const isPlaying = game.scene === "playing" || game.scene === "coin-flip";
     const canExitToMainMenu = game.scene !== "menu";
     const fullscreenSupported = isFullscreenSupported();
     const fullscreenActive = isFullscreenActive();
@@ -728,14 +750,22 @@
       return;
     }
 
-    const activeAbilityReady = activePlayer.abilityCharged && uiState.turnState === "aiming";
+    const isCoinFlip = uiState.scene === "coin-flip";
+    const coinFlipWinnerVisible = Boolean(uiState.coinFlipWinnerVisible);
+    const activeAbilityReady = !isCoinFlip && activePlayer.abilityCharged && uiState.turnState === "aiming";
 
-    dom.turnIndicator.textContent = activePlayer.name;
+    dom.turnLabel.textContent = isCoinFlip ? (coinFlipWinnerVisible ? "Coin Flip Winner" : "Coin Flip") : "Current Turn";
+    dom.turnIndicator.textContent = isCoinFlip && !coinFlipWinnerVisible ? "Flipping..." : activePlayer.name;
     dom.turnBanner.classList.toggle("is-ability-ready", activeAbilityReady);
-    dom.orangeProgressCard.classList.toggle("is-hidden", Boolean(uiState.finalShotActive));
+    dom.turnBanner.classList.toggle("is-coin-flip-winner", isCoinFlip && coinFlipWinnerVisible);
+    dom.orangeProgressCard.classList.toggle("is-hidden", Boolean(uiState.finalShotActive) || isCoinFlip);
     renderOrangeProgress(uiState);
 
-    if (activeAbilityReady) {
+    if (isCoinFlip && coinFlipWinnerVisible) {
+      dom.roundSubtitle.textContent = activePlayer.name + " won the flip and will take the opening shot.";
+    } else if (isCoinFlip) {
+      dom.roundSubtitle.textContent = "Flipping the coin to choose the opening player.";
+    } else if (activeAbilityReady) {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Power stores for the next shot.";
     } else if (uiState.turnState === "aiming") {
       dom.roundSubtitle.textContent = "Orange pegs left: " + uiState.orangeRemaining + ". Line up the launch.";
@@ -746,11 +776,12 @@
     for (let playerIndex = 0; playerIndex < uiState.players.length; playerIndex += 1) {
       const player = uiState.players[playerIndex];
       const character = window.GeppleCharacterLookup[player.characterId];
-      const isActive = playerIndex === uiState.activePlayerIndex;
+      const isActive = playerIndex === uiState.activePlayerIndex && (!isCoinFlip || coinFlipWinnerVisible);
       const assignmentLabel = controllerManager.getAssignmentLabel(playerIndex);
       const abilityReady = player.abilityCharged;
       let abilityStatus = "Waiting for green peg";
       let abilityStatusClass = "status-pill status-pill--idle";
+      let playerStatus = isActive ? "Shooting now" : "Waiting turn";
 
       if (abilityReady) {
         abilityStatus = isActive && uiState.turnState === "aiming" ? "Auto on next shot" : "Stored for next shot";
@@ -762,8 +793,15 @@
         abilityStatusClass = "status-pill status-pill--spent";
       }
 
+      if (isCoinFlip && coinFlipWinnerVisible) {
+        playerStatus = isActive ? "Starts first" : "Waiting second";
+      } else if (isCoinFlip) {
+        playerStatus = "Awaiting flip";
+      }
+
       dom.hudPlayers[playerIndex].classList.toggle("is-active", isActive);
       dom.hudPlayers[playerIndex].classList.toggle("is-ready", abilityReady && isActive && uiState.turnState === "aiming");
+      dom.hudPlayers[playerIndex].classList.toggle("is-coin-flip-winner", isCoinFlip && isActive);
       dom.hudPlayers[playerIndex].innerHTML =
         '<div class="hud-topline">' +
         '<span class="hud-label">' +
@@ -807,7 +845,7 @@
         abilityStatus +
         "</strong></div>" +
         '<div class="stat-line"><span>Status</span><strong>' +
-        (isActive ? "Shooting now" : "Waiting turn") +
+        playerStatus +
         "</strong></div>";
     }
 
@@ -875,11 +913,13 @@
     const uiState = game.getUiState();
     const isMenu = uiState.scene === "menu";
     const isPlaying = uiState.scene === "playing";
+    const isCoinFlip = uiState.scene === "coin-flip";
     const isRoundOver = uiState.scene === "round-over";
+    const showHud = isPlaying || isCoinFlip;
     const sceneChanged = uiState.scene !== lastScene;
 
     dom.menuScreen.classList.toggle("is-hidden", !isMenu);
-    dom.hudScreen.classList.toggle("is-hidden", !isPlaying);
+    dom.hudScreen.classList.toggle("is-hidden", !showHud);
     dom.roundOverScreen.classList.toggle("is-hidden", !isRoundOver);
     dom.systemMenuScreen.classList.toggle("is-hidden", !isSystemMenuOpen);
 
@@ -891,7 +931,7 @@
       }
     }
 
-    if (isPlaying) {
+    if (showHud) {
       renderHud(uiState);
     }
 

@@ -81,7 +81,7 @@ runTest("every selectable layout keeps the expected peg counts and color counts"
 
     assert.equal(map.pegs.length, 96, option.id + " should have 96 pegs");
     assert.equal(getTypeCount(map.pegs, "orange"), 25, option.id + " should have 25 orange pegs");
-    assert.equal(getTypeCount(map.pegs, "green"), 2, option.id + " should have 2 green pegs");
+    assert.equal(getTypeCount(map.pegs, "green"), 0, option.id + " should not bake green pegs into the map");
     assert.equal(GeppleMap.findPegsAboveAimWindow(boardBounds, map.pegs).length, 0, option.id + " has a peg that is too high");
   }
 });

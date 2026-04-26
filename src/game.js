@@ -25,6 +25,8 @@
   const LAST_ORANGE_TIME_SCALE = 0.16;
   const LAST_ORANGE_CAMERA_SCALE = 1.54;
   const LAST_ORANGE_CAMERA_SPEED = 1.9;
+  const COIN_FLIP_REVEAL_DELAY_MS = 850;
+  const COIN_FLIP_START_DELAY_MS = 1250;
   const MOVING_CATCHER_SCORE_BONUS = 5000;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
@@ -84,6 +86,37 @@
     }
 
     return String(bonus);
+  }
+
+  function createRandom(seed) {
+    let value = seed >>> 0;
+
+    return function nextRandom() {
+      value += 0x6d2b79f5;
+      let next = value;
+
+      next = Math.imul(next ^ (next >>> 15), next | 1);
+      next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+
+      return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashString(text) {
+    let hash = 2166136261;
+
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+
+    return hash >>> 0;
+  }
+
+  function wait(milliseconds) {
+    return new Promise(function resolveAfterDelay(resolve) {
+      window.setTimeout(resolve, milliseconds);
+    });
   }
 
   function traceRoundedRect(context, x, y, width, height, radius) {
@@ -149,6 +182,10 @@
       this.mapBackgroundPath = "";
       this.mapBackgroundImage = null;
       this.backgroundImageCache = {};
+      this.greenRandom = createRandom(1);
+      this.activeGreenPegId = null;
+      this.roundStartToken = 0;
+      this.coinFlipWinnerVisible = false;
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
@@ -195,13 +232,55 @@
       return bubbles;
     }
 
-    startRound(playerConfigs, roundOptions) {
+    async startRound(playerConfigs, roundOptions) {
+      const startToken = this.beginRoundStart(playerConfigs, roundOptions);
+      const map = this.createMap();
+
+      await this.preloadMapBackground(map.backgroundPath);
+
+      if (!this.isCurrentRoundStart(startToken)) {
+        return false;
+      }
+
+      this.mapName = map.name;
+      this.setMapBackground(map.backgroundPath);
+      this.startCoinFlipReveal();
+
+      await wait(COIN_FLIP_REVEAL_DELAY_MS);
+
+      if (!this.isCurrentRoundStart(startToken)) {
+        return false;
+      }
+
+      this.activePlayerIndex = this.chooseFirstPlayerIndex();
+      this.coinFlipWinnerVisible = true;
+      this.pushToast("Coin flip chose " + this.players[this.activePlayerIndex].name + " to shoot first.");
+
+      await wait(COIN_FLIP_START_DELAY_MS);
+
+      if (!this.isCurrentRoundStart(startToken)) {
+        return false;
+      }
+
+      this.loadPreparedMap(map);
       this.scene = "playing";
       this.turnState = "aiming";
+      this.pushToast(this.mapName + " board loaded. Orange pegs decide the pace.");
+
+      return true;
+    }
+
+    beginRoundStart(playerConfigs, roundOptions) {
+      const startToken = this.roundStartToken + 1;
+
+      this.roundStartToken = startToken;
+      this.turnState = "idle";
       this.turnAim = -Math.PI / 2;
       this.turnDelay = 0;
       this.seed = Date.now();
       this.mapId = roundOptions && roundOptions.mapId ? roundOptions.mapId : "random";
+      this.greenRandom = createRandom(this.seed ^ hashString(this.mapId));
+      this.activeGreenPegId = null;
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
@@ -215,6 +294,7 @@
       this.lastOrangeCameraProgress = 0;
       this.lastOrangeFocusX = this.boardBounds.centerX;
       this.lastOrangeFocusY = this.boardBounds.bottom;
+      this.coinFlipWinnerVisible = false;
       this.bucket.x = this.boardBounds.centerX;
       this.bucket.direction = 1;
 
@@ -235,21 +315,45 @@
 
       this.activePlayerIndex = 0;
       this.activeBalls = [];
+      this.pegs = [];
+      this.orangeTotal = 0;
+      this.orangeRemaining = 0;
       this.particles = [];
       this.toasts = [];
       this.screenFlash = 0;
       this.cameraShake = 0;
 
-      this.generateNewMap();
-      this.pushToast(this.mapName + " board loaded. Orange pegs decide the pace.");
+      return startToken;
+    }
+
+    chooseFirstPlayerIndex() {
+      if (this.players.length <= 1) {
+        return 0;
+      }
+
+      return Math.floor(Math.random() * this.players.length);
+    }
+
+    isCurrentRoundStart(startToken) {
+      return this.roundStartToken === startToken;
+    }
+
+    startCoinFlipReveal() {
+      this.scene = "coin-flip";
+      this.turnState = "coin-flip";
+      this.coinFlipWinnerVisible = false;
+      this.audioManager.playCoinFlip();
     }
 
     returnToMenu() {
+      this.roundStartToken += 1;
       this.scene = "menu";
       this.turnState = "idle";
       this.activeBalls = [];
       this.particles = [];
       this.toasts = [];
+      this.activeGreenPegId = null;
+      this.coinFlipWinnerVisible = false;
       this.lastOrangeCelebrationActive = false;
       this.lastOrangeBall = null;
       this.lastOrangeCameraProgress = 0;
@@ -257,21 +361,66 @@
     }
 
     generateNewMap() {
-      const map = window.GeppleMap.generateMap(this.boardBounds, {
+      this.loadPreparedMap(this.createMap());
+    }
+
+    createMap() {
+      return window.GeppleMap.generateMap(this.boardBounds, {
         seed: this.seed,
         mapId: this.mapId,
       });
+    }
 
+    loadPreparedMap(map) {
       this.mapName = map.name;
       this.setMapBackground(map.backgroundPath);
       this.pegs = map.pegs;
       this.orangeTotal = map.orangeCount;
       this.orangeRemaining = map.orangeCount;
+      this.activeGreenPegId = null;
+      this.spawnNextGreenPeg();
     }
 
     setMapBackground(backgroundPath) {
       this.mapBackgroundPath = backgroundPath || "";
       this.mapBackgroundImage = this.getBackgroundImage(this.mapBackgroundPath);
+    }
+
+    preloadMapBackground(backgroundPath) {
+      const image = this.getBackgroundImage(backgroundPath);
+
+      if (!image) {
+        return Promise.resolve(null);
+      }
+
+      if (image.complete) {
+        return Promise.resolve(image.naturalWidth > 0 ? image : null);
+      }
+
+      if (image.geppleLoadPromise) {
+        return image.geppleLoadPromise;
+      }
+
+      image.geppleLoadPromise = new Promise(function resolveWhenImageIsReady(resolve) {
+        function cleanup(result) {
+          image.removeEventListener("load", handleLoad);
+          image.removeEventListener("error", handleError);
+          resolve(result);
+        }
+
+        function handleLoad() {
+          cleanup(image);
+        }
+
+        function handleError() {
+          cleanup(null);
+        }
+
+        image.addEventListener("load", handleLoad);
+        image.addEventListener("error", handleError);
+      });
+
+      return image.geppleLoadPromise;
     }
 
     getBackgroundImage(backgroundPath) {
@@ -310,6 +459,54 @@
       }
 
       return window.GeppleCharacterLookup[player.characterId];
+    }
+
+    getActiveGreenPeg() {
+      if (!this.activeGreenPegId) {
+        return null;
+      }
+
+      const activeGreenPegId = this.activeGreenPegId;
+
+      return (
+        this.pegs.find(function findPeg(peg) {
+          return peg.id === activeGreenPegId && !peg.isHit && peg.type === "green";
+        }) || null
+      );
+    }
+
+    spawnNextGreenPeg() {
+      if (this.getActiveGreenPeg()) {
+        return;
+      }
+
+      this.clearUntrackedGreenPegs();
+
+      const candidates = this.pegs.filter(function findGreenCandidate(peg) {
+        return !peg.isHit && peg.type === "blue";
+      });
+
+      if (candidates.length === 0) {
+        this.activeGreenPegId = null;
+        return;
+      }
+
+      const index = Math.floor(this.greenRandom() * candidates.length);
+      const peg = candidates[index];
+
+      peg.type = "green";
+      peg.glow = Math.max(peg.glow, 1);
+      this.activeGreenPegId = peg.id;
+    }
+
+    clearUntrackedGreenPegs() {
+      for (const peg of this.pegs) {
+        if (peg.isHit || peg.type !== "green") {
+          continue;
+        }
+
+        peg.type = "blue";
+      }
     }
 
     getOrangeClaimed() {
@@ -1003,6 +1200,7 @@
       if (peg.type === "green") {
         points = 300;
         player.abilityCharged = true;
+        this.activeGreenPegId = null;
         particleColor = "#7df2c5";
         this.pushToast(player.name + " charged " + window.GeppleCharacterLookup[player.characterId].abilityName + ".");
         this.audioManager.playAbilityReady();
@@ -1243,6 +1441,7 @@
       this.activePlayerIndex = nextIndex;
       this.turnState = "aiming";
       this.turnAim = -Math.PI / 2;
+      this.spawnNextGreenPeg();
       this.pushToast(this.players[this.activePlayerIndex].name + " is up. Make it bounce.");
     }
 
@@ -1347,6 +1546,7 @@
         finalBucketBonus: this.finalBucketBonus,
         finalBucketLabel: this.finalBucketLabel,
         finalBucketOwnerIndex: this.finalBucketOwnerIndex,
+        coinFlipWinnerVisible: this.coinFlipWinnerVisible,
         toasts: this.toasts,
       };
     }

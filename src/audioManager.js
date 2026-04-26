@@ -7,6 +7,7 @@
         this.createMusicTrack("audio/soundtrack1.mp3"),
         this.createMusicTrack("audio/soundtrack2.mp3"),
       ];
+      this.coinFlipSound = this.createEffectTrack("audio/coin-flip.mp3", 0.58);
       this.currentMusicIndex = 0;
       this.isGameMusicPlaying = false;
 
@@ -15,12 +16,20 @@
       }
     }
 
-    createMusicTrack(source) {
+    createAudioTrack(source, volume) {
       const trackSource = window.GeppleAssetPath ? window.GeppleAssetPath(source) : source;
       const track = new Audio(trackSource);
       track.preload = "auto";
-      track.volume = 0.14;
+      track.volume = volume;
       return track;
+    }
+
+    createMusicTrack(source) {
+      return this.createAudioTrack(source, 0.14);
+    }
+
+    createEffectTrack(source, volume) {
+      return this.createAudioTrack(source, volume);
     }
 
     unlock() {
@@ -89,6 +98,26 @@
       this.currentMusicIndex = (this.currentMusicIndex + 1) % this.musicTracks.length;
       this.musicTracks[this.currentMusicIndex].currentTime = 0;
       this.playCurrentMusicTrack();
+    }
+
+    playAudioTrack(track) {
+      if (!track) {
+        return;
+      }
+
+      track.currentTime = 0;
+
+      const playPromise = track.play();
+
+      if (!playPromise || !playPromise.catch) {
+        return;
+      }
+
+      playPromise.catch(function ignoreAutoplayBlock() {});
+    }
+
+    playCoinFlip() {
+      this.playAudioTrack(this.coinFlipSound);
     }
 
     playTone(options) {

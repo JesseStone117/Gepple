@@ -493,6 +493,14 @@ h3 {
   box-shadow: 0 0 0 1px rgba(255, 226, 122, 0.14), 0 18px 36px rgba(0, 0, 0, 0.22);
 }
 
+.play-side.is-coin-flip-winner {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 226, 122, 0.16), transparent 38%),
+    rgba(4, 7, 13, 0.6);
+  border-color: rgba(255, 226, 122, 0.72);
+  box-shadow: 0 0 0 2px rgba(255, 226, 122, 0.2), 0 0 42px rgba(255, 226, 122, 0.2);
+}
+
 .play-side.is-ready {
   border-color: rgba(125, 242, 197, 0.68);
   box-shadow: 0 0 0 1px rgba(125, 242, 197, 0.2), 0 0 32px rgba(125, 242, 197, 0.18);
@@ -523,6 +531,11 @@ h3 {
   border-color: rgba(125, 242, 197, 0.7);
   box-shadow: 0 0 0 1px rgba(125, 242, 197, 0.22), 0 0 34px rgba(125, 242, 197, 0.18);
   animation: ready-pulse 1.1s ease-in-out infinite;
+}
+
+.turn-banner.is-coin-flip-winner {
+  border-color: rgba(255, 226, 122, 0.72);
+  box-shadow: 0 0 0 1px rgba(255, 226, 122, 0.24), 0 0 38px rgba(255, 226, 122, 0.18);
 }
 
 .hud-turn-label {

@@ -2,7 +2,7 @@
   const PEG_RADIUS = 6;
   const TOTAL_PEGS = 96;
   const ORANGE_COUNT = 25;
-  const GREEN_COUNT = 2;
+  const GREEN_COUNT = 0;
   const LAUNCH_Y = 94;
   const AIM_LEFT_EDGE = -0.14;
   const AIM_RIGHT_EDGE = -Math.PI + 0.32;
@@ -658,17 +658,12 @@
     );
 
     const orangeSet = new Set(indices.slice(0, ORANGE_COUNT));
-    const greenSet = new Set(indices.slice(ORANGE_COUNT, ORANGE_COUNT + GREEN_COUNT));
 
     return pegs.map(function mapPeg(peg, index) {
       let type = "blue";
 
       if (orangeSet.has(index)) {
         type = "orange";
-      }
-
-      if (greenSet.has(index)) {
-        type = "green";
       }
 
       return {
