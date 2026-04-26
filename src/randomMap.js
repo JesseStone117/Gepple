@@ -14,41 +14,49 @@
       id: "random",
       name: "Random",
       description: "Peggle-style density with fresh spacing every round.",
+      backgroundPath: "assets/maps/random-bg.png",
     },
     {
       id: "crown",
       name: "Crown",
       description: "A crown with hanging drapes and jewel clusters.",
+      backgroundPath: "assets/maps/crown-bg.png",
     },
     {
       id: "heart",
       name: "Heart",
       description: "A layered heart with ribbons and side flourishes.",
+      backgroundPath: "assets/maps/heart-bg.png",
     },
     {
       id: "diamond",
       name: "Diamond",
       description: "A big center gem with orbiting side pieces.",
+      backgroundPath: "assets/maps/diamond-bg.png",
     },
     {
       id: "orbit",
       name: "Orbit",
       description: "Separated moons, rings, and crossing comet lanes.",
+      backgroundPath: "assets/maps/orbit-bg.png",
     },
     {
       id: "garden",
       name: "Garden",
       description: "Petal clusters, leaf arcs, and open pockets between blooms.",
+      backgroundPath: "assets/maps/garden-bg.png",
     },
     {
       id: "clockwork",
       name: "Clockwork",
       description: "Gears, ramps, and staggered machine lanes.",
+      backgroundPath: "assets/maps/clockwork-bg.png",
     },
     {
       id: "citadel",
       name: "Citadel",
       description: "Towers, gates, arches, and layered fortress gaps.",
+      backgroundPath: "assets/maps/citadel-bg.png",
     },
   ];
 
@@ -89,21 +97,6 @@
     }
 
     return copy;
-  }
-
-  function spread(start, end, count) {
-    if (count <= 1) {
-      return [start];
-    }
-
-    const values = [];
-    const step = (end - start) / (count - 1);
-
-    for (let index = 0; index < count; index += 1) {
-      values.push(Number((start + step * index).toFixed(3)));
-    }
-
-    return values;
   }
 
   function createAimVector(turnAim) {
@@ -208,21 +201,6 @@
     throw new Error("Random map generator could not keep the pegs spaced out enough.");
   }
 
-  function createPointsFromRows(rows) {
-    const points = [];
-
-    for (const row of rows) {
-      for (const x of row.xs) {
-        points.push({
-          x,
-          y: row.y,
-        });
-      }
-    }
-
-    return points;
-  }
-
   function addPatternPoint(points, x, y) {
     points.push({
       x: Number(x.toFixed(3)),
@@ -230,7 +208,109 @@
     });
   }
 
-  function addFlower(points, centerX, centerY) {
+  function addPatternRows(points, rows) {
+    for (const row of rows) {
+      for (const x of row.xs) {
+        addPatternPoint(points, x, row.y);
+      }
+    }
+  }
+
+  function addPatternLine(points, startX, startY, endX, endY, count) {
+    for (let index = 0; index < count; index += 1) {
+      const progress = count === 1 ? 0 : index / (count - 1);
+      const x = startX + (endX - startX) * progress;
+      const y = startY + (endY - startY) * progress;
+
+      addPatternPoint(points, x, y);
+    }
+  }
+
+  function addPatternLineMiddle(points, startX, startY, endX, endY, count) {
+    for (let index = 0; index < count; index += 1) {
+      const progress = (index + 1) / (count + 1);
+      const x = startX + (endX - startX) * progress;
+      const y = startY + (endY - startY) * progress;
+
+      addPatternPoint(points, x, y);
+    }
+  }
+
+  function addPatternPath(points, vertices, segmentCounts) {
+    for (let index = 0; index < vertices.length - 1; index += 1) {
+      const start = vertices[index];
+      const end = vertices[index + 1];
+      const count = segmentCounts[index];
+      const firstStep = index === 0 ? 0 : 1;
+
+      for (let step = firstStep; step < count; step += 1) {
+        const progress = count === 1 ? 0 : step / (count - 1);
+        const x = start[0] + (end[0] - start[0]) * progress;
+        const y = start[1] + (end[1] - start[1]) * progress;
+
+        addPatternPoint(points, x, y);
+      }
+    }
+  }
+
+  function addClosedPatternPath(points, vertices, countPerSegment) {
+    for (let index = 0; index < vertices.length; index += 1) {
+      const start = vertices[index];
+      const end = vertices[(index + 1) % vertices.length];
+
+      for (let step = 0; step < countPerSegment; step += 1) {
+        const progress = step / countPerSegment;
+        const x = start[0] + (end[0] - start[0]) * progress;
+        const y = start[1] + (end[1] - start[1]) * progress;
+
+        addPatternPoint(points, x, y);
+      }
+    }
+  }
+
+  function addPatternArc(points, centerX, centerY, radiusX, radiusY, startAngle, endAngle, count) {
+    for (let index = 0; index < count; index += 1) {
+      const progress = count === 1 ? 0 : index / (count - 1);
+      const angle = startAngle + (endAngle - startAngle) * progress;
+
+      addPatternPoint(
+        points,
+        centerX + Math.cos(angle) * radiusX,
+        centerY + Math.sin(angle) * radiusY
+      );
+    }
+  }
+
+  function addPatternRing(points, centerX, centerY, radiusX, radiusY, count, phase) {
+    const angleOffset = phase || 0;
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = angleOffset + (Math.PI * 2 * index) / count;
+
+      addPatternPoint(
+        points,
+        centerX + Math.cos(angle) * radiusX,
+        centerY + Math.sin(angle) * radiusY
+      );
+    }
+  }
+
+  function addPatternGear(points, centerX, centerY, radiusX, radiusY, count, phase) {
+    const angleOffset = phase || 0;
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = angleOffset + (Math.PI * 2 * index) / count;
+      const toothScale = index % 2 === 0 ? 1.06 : 0.9;
+
+      addPatternPoint(
+        points,
+        centerX + Math.cos(angle) * radiusX * toothScale,
+        centerY + Math.sin(angle) * radiusY * toothScale
+      );
+    }
+  }
+
+  function addGardenFlower(points, centerX, centerY) {
     const petals = [
       { x: 0, y: 0 },
       { x: 0, y: -0.072 },
@@ -248,76 +328,128 @@
     }
   }
 
-  function addStem(points, centerX, yValues) {
+  function addGardenStem(points, centerX, yValues) {
     for (let index = 0; index < yValues.length; index += 1) {
       addPatternPoint(points, centerX + Math.sin(index * 0.9) * 0.012, yValues[index]);
     }
   }
 
-  function addLeaf(points, stemX, stemY, direction) {
+  function addGardenLeaf(points, stemX, stemY, direction) {
     addPatternPoint(points, stemX + direction * 0.04, stemY - 0.024);
     addPatternPoint(points, stemX + direction * 0.072, stemY);
     addPatternPoint(points, stemX + direction * 0.04, stemY + 0.024);
   }
 
-  function buildCrownRows() {
-    return [
-      { y: 0.14, xs: [0.12, 0.2, 0.28, 0.38, 0.5, 0.62, 0.72, 0.8] },
-      { y: 0.22, xs: [0.08, 0.16, 0.24, 0.34, 0.42, 0.58, 0.66, 0.76, 0.84, 0.92] },
-      { y: 0.3, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.56, 0.64, 0.72, 0.8, 0.88] },
-      { y: 0.38, xs: spread(0.08, 0.92, 12) },
-      { y: 0.46, xs: spread(0.1, 0.9, 12) },
-      { y: 0.54, xs: spread(0.08, 0.92, 12) },
-      { y: 0.62, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.56, 0.64, 0.72, 0.8, 0.88] },
-      { y: 0.7, xs: [0.08, 0.16, 0.24, 0.34, 0.42, 0.58, 0.66, 0.76, 0.84, 0.92] },
-      { y: 0.78, xs: [0.18, 0.28, 0.38, 0.5, 0.62, 0.72, 0.82] },
-      { y: 0.86, xs: [0.3, 0.4, 0.5, 0.6, 0.7] },
-    ];
+  function addAccentPoints(points, accentPoints) {
+    for (const accentPoint of accentPoints) {
+      addPatternPoint(points, accentPoint[0], accentPoint[1]);
+    }
   }
 
-  function buildHeartRows() {
-    return [
-      { y: 0.14, xs: [0.18, 0.26, 0.34, 0.42, 0.58, 0.66, 0.74, 0.82] },
-      { y: 0.22, xs: [0.12, 0.2, 0.28, 0.36, 0.44, 0.56, 0.64, 0.72, 0.8, 0.88] },
-      { y: 0.3, xs: spread(0.08, 0.92, 12) },
-      { y: 0.38, xs: spread(0.1, 0.9, 12) },
-      { y: 0.46, xs: spread(0.14, 0.86, 12) },
-      { y: 0.54, xs: spread(0.18, 0.82, 12) },
-      { y: 0.62, xs: spread(0.22, 0.78, 10) },
-      { y: 0.7, xs: spread(0.24, 0.76, 10) },
-      { y: 0.78, xs: spread(0.34, 0.66, 6) },
-      { y: 0.86, xs: [0.38, 0.46, 0.54, 0.62] },
+  function buildCrownPoints() {
+    const points = [];
+    const spikePath = [
+      [0.13, 0.57],
+      [0.25, 0.28],
+      [0.37, 0.51],
+      [0.5, 0.2],
+      [0.63, 0.51],
+      [0.75, 0.28],
+      [0.87, 0.57],
     ];
+
+    addPatternPath(points, spikePath, [5, 5, 6, 6, 5, 5]);
+    addPatternLine(points, 0.13, 0.65, 0.87, 0.65, 18);
+    addPatternLine(points, 0.18, 0.76, 0.82, 0.76, 16);
+    addPatternLine(points, 0.25, 0.82, 0.75, 0.82, 12);
+    addPatternRing(points, 0.5, 0.51, 0.04, 0.065, 7, 0.2);
+    addPatternRing(points, 0.25, 0.47, 0.032, 0.052, 6, 0.2);
+    addPatternRing(points, 0.75, 0.47, 0.032, 0.052, 6, 0.2);
+    addAccentPoints(points, [
+      [0.43, 0.14],
+      [0.57, 0.14],
+      [0.43, 0.23],
+      [0.57, 0.23],
+    ]);
+
+    return points;
   }
 
-  function buildDiamondRows() {
-    return [
-      { y: 0.14, xs: [0.38, 0.46, 0.54, 0.62] },
-      { y: 0.22, xs: [0.22, 0.3, 0.38, 0.46, 0.54, 0.62, 0.7, 0.78] },
-      { y: 0.3, xs: spread(0.14, 0.86, 10) },
-      { y: 0.38, xs: spread(0.08, 0.92, 12) },
-      { y: 0.46, xs: spread(0.04, 0.96, 14) },
-      { y: 0.54, xs: spread(0.04, 0.96, 14) },
-      { y: 0.62, xs: spread(0.08, 0.92, 12) },
-      { y: 0.7, xs: spread(0.14, 0.86, 10) },
-      { y: 0.78, xs: [0.22, 0.3, 0.38, 0.46, 0.54, 0.62, 0.7, 0.78] },
-      { y: 0.86, xs: [0.38, 0.46, 0.54, 0.62] },
-    ];
+  function buildHeartPoints() {
+    const points = [];
+
+    addPatternRows(points, [
+      { y: 0.19, xs: [0.32, 0.4, 0.6, 0.68] },
+      { y: 0.25, xs: [0.24, 0.31, 0.38, 0.45, 0.55, 0.62, 0.69, 0.76] },
+      { y: 0.32, xs: [0.18, 0.26, 0.34, 0.42, 0.5, 0.58, 0.66, 0.74, 0.82, 0.9] },
+      { y: 0.39, xs: [0.15, 0.23, 0.31, 0.39, 0.47, 0.53, 0.61, 0.69, 0.77, 0.85, 0.93, 0.97] },
+      { y: 0.46, xs: [0.18, 0.26, 0.34, 0.42, 0.5, 0.58, 0.66, 0.74, 0.82, 0.9, 0.94, 0.98] },
+      { y: 0.53, xs: [0.12, 0.22, 0.3, 0.38, 0.46, 0.54, 0.62, 0.7, 0.78, 0.86, 0.94, 0.98] },
+      { y: 0.6, xs: [0.19, 0.27, 0.35, 0.43, 0.5, 0.57, 0.65, 0.73, 0.81, 0.89] },
+      { y: 0.67, xs: [0.18, 0.26, 0.33, 0.4, 0.47, 0.54, 0.61, 0.68, 0.75, 0.82] },
+      { y: 0.74, xs: [0.3, 0.34, 0.4, 0.46, 0.52, 0.58, 0.64, 0.7] },
+      { y: 0.81, xs: [0.35, 0.4, 0.45, 0.5, 0.55, 0.6] },
+      { y: 0.87, xs: [0.43, 0.47, 0.51, 0.55] },
+    ]);
+
+    return points;
   }
 
-  function buildOrbitRows() {
-    return [
-      { y: 0.14, xs: [0.2, 0.3, 0.42, 0.5, 0.58, 0.7, 0.8, 0.9] },
-      { y: 0.22, xs: [0.08, 0.18, 0.28, 0.4, 0.48, 0.56, 0.64, 0.76, 0.86, 0.96] },
-      { y: 0.3, xs: [0.08, 0.18, 0.3, 0.4, 0.5, 0.6, 0.7, 0.82, 0.92, 0.98] },
-      { y: 0.38, xs: [0.06, 0.16, 0.28, 0.38, 0.46, 0.54, 0.62, 0.72, 0.84, 0.94] },
-      { y: 0.46, xs: [0.08, 0.18, 0.28, 0.38, 0.46, 0.54, 0.62, 0.72, 0.82, 0.92] },
-      { y: 0.54, xs: [0.08, 0.18, 0.3, 0.4, 0.5, 0.6, 0.7, 0.82, 0.92, 0.98] },
-      { y: 0.62, xs: [0.06, 0.16, 0.28, 0.38, 0.46, 0.54, 0.62, 0.72, 0.84, 0.94] },
-      { y: 0.7, xs: [0.08, 0.2, 0.32, 0.42, 0.5, 0.58, 0.68, 0.8, 0.92, 0.98] },
-      { y: 0.78, xs: [0.14, 0.26, 0.38, 0.48, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.86, xs: [0.08, 0.2, 0.32, 0.44, 0.5, 0.56, 0.68, 0.8, 0.92] },
-    ];
+  function buildDiamondPoints() {
+    const points = [];
+
+    addPatternRows(points, [
+      { y: 0.18, xs: [0.45, 0.5, 0.55, 0.6] },
+      { y: 0.25, xs: [0.33, 0.39, 0.45, 0.5, 0.55, 0.61, 0.67, 0.73] },
+      { y: 0.32, xs: [0.25, 0.31, 0.37, 0.43, 0.49, 0.55, 0.61, 0.67, 0.73, 0.79] },
+      { y: 0.39, xs: [0.18, 0.25, 0.32, 0.39, 0.46, 0.53, 0.6, 0.67, 0.74, 0.81, 0.88, 0.95] },
+      { y: 0.46, xs: [0.12, 0.19, 0.26, 0.33, 0.4, 0.47, 0.53, 0.6, 0.67, 0.74, 0.81, 0.88, 0.95, 0.98] },
+      { y: 0.53, xs: [0.12, 0.19, 0.26, 0.33, 0.4, 0.47, 0.53, 0.6, 0.67, 0.74, 0.81, 0.88, 0.95, 0.98] },
+      { y: 0.6, xs: [0.18, 0.25, 0.32, 0.39, 0.46, 0.53, 0.6, 0.67, 0.74, 0.81, 0.88, 0.95] },
+      { y: 0.67, xs: [0.25, 0.31, 0.37, 0.43, 0.49, 0.55, 0.61, 0.67, 0.73, 0.79] },
+      { y: 0.74, xs: [0.33, 0.39, 0.45, 0.5, 0.55, 0.61, 0.67, 0.73] },
+      { y: 0.82, xs: [0.43, 0.48, 0.53, 0.58] },
+    ]);
+
+    return points;
+  }
+
+  function buildOrbitPoints() {
+    const points = [];
+
+    addPatternRing(points, 0.21, 0.55, 0.085, 0.138, 16, 0.15);
+    addPatternRing(points, 0.5, 0.5, 0.14, 0.09, 12, 0.1);
+    addPatternRing(points, 0.79, 0.55, 0.085, 0.138, 16, 0.45);
+    addPatternArc(points, 0.5, 0.22, 0.34, 0.08, -Math.PI * 0.95, -Math.PI * 0.05, 11);
+    addPatternArc(points, 0.5, 0.78, 0.34, 0.08, Math.PI * 0.05, Math.PI * 0.95, 11);
+    addPatternLineMiddle(points, 0.14, 0.35, 0.32, 0.24, 4);
+    addPatternLineMiddle(points, 0.86, 0.35, 0.68, 0.24, 4);
+    addAccentPoints(points, [
+      [0.12, 0.68],
+      [0.17, 0.74],
+      [0.25, 0.9],
+      [0.34, 0.74],
+      [0.66, 0.74],
+      [0.75, 0.9],
+      [0.83, 0.74],
+      [0.88, 0.68],
+      [0.4, 0.2],
+      [0.6, 0.2],
+      [0.38, 0.9],
+      [0.62, 0.9],
+      [0.22, 0.24],
+      [0.78, 0.24],
+      [0.32, 0.64],
+      [0.68, 0.64],
+      [0.1, 0.48],
+      [0.9, 0.48],
+      [0.46, 0.32],
+      [0.54, 0.32],
+      [0.28, 0.9],
+      [0.72, 0.9],
+    ]);
+
+    return points;
   }
 
   function buildGardenPoints() {
@@ -355,93 +487,109 @@
       [0.6, 0.64],
     ];
 
-    addFlower(points, 0.24, 0.33);
-    addFlower(points, 0.5, 0.42);
-    addFlower(points, 0.76, 0.33);
-    addFlower(points, 0.5, 0.7);
+    addGardenFlower(points, 0.24, 0.33);
+    addGardenFlower(points, 0.5, 0.42);
+    addGardenFlower(points, 0.76, 0.33);
+    addGardenFlower(points, 0.5, 0.7);
 
-    addStem(points, 0.24, [0.46, 0.53, 0.6, 0.67, 0.74]);
-    addStem(points, 0.76, [0.46, 0.53, 0.6, 0.67, 0.74]);
-    addStem(points, 0.5, [0.82, 0.88]);
+    addGardenStem(points, 0.24, [0.46, 0.53, 0.6, 0.67, 0.74]);
+    addGardenStem(points, 0.76, [0.46, 0.53, 0.6, 0.67, 0.74]);
+    addGardenStem(points, 0.5, [0.82, 0.88]);
 
-    addLeaf(points, 0.24, 0.55, 1);
-    addLeaf(points, 0.24, 0.68, -1);
-    addLeaf(points, 0.76, 0.55, -1);
-    addLeaf(points, 0.76, 0.68, 1);
-    addLeaf(points, 0.5, 0.85, -1);
-    addLeaf(points, 0.5, 0.85, 1);
-
-    for (const accentPoint of accentPoints) {
-      addPatternPoint(points, accentPoint[0], accentPoint[1]);
-    }
+    addGardenLeaf(points, 0.24, 0.55, 1);
+    addGardenLeaf(points, 0.24, 0.68, -1);
+    addGardenLeaf(points, 0.76, 0.55, -1);
+    addGardenLeaf(points, 0.76, 0.68, 1);
+    addGardenLeaf(points, 0.5, 0.85, -1);
+    addGardenLeaf(points, 0.5, 0.85, 1);
+    addAccentPoints(points, accentPoints);
 
     return points;
   }
 
-  function buildClockworkRows() {
-    return [
-      { y: 0.14, xs: [0.16, 0.28, 0.4, 0.5, 0.6, 0.72, 0.84, 0.92] },
-      { y: 0.22, xs: [0.08, 0.18, 0.28, 0.4, 0.48, 0.56, 0.64, 0.76, 0.86, 0.96] },
-      { y: 0.3, xs: [0.12, 0.22, 0.32, 0.42, 0.5, 0.58, 0.68, 0.78, 0.88, 0.98] },
-      { y: 0.38, xs: [0.08, 0.2, 0.32, 0.42, 0.5, 0.58, 0.68, 0.8, 0.92, 0.98] },
-      { y: 0.46, xs: [0.08, 0.16, 0.28, 0.38, 0.48, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.54, xs: [0.04, 0.14, 0.26, 0.38, 0.48, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.62, xs: [0.08, 0.14, 0.26, 0.36, 0.46, 0.54, 0.64, 0.74, 0.86, 0.96] },
-      { y: 0.7, xs: [0.04, 0.14, 0.26, 0.38, 0.48, 0.56, 0.66, 0.78, 0.9, 0.98] },
-      { y: 0.78, xs: [0.16, 0.28, 0.4, 0.48, 0.56, 0.64, 0.76, 0.88, 0.98] },
-      { y: 0.86, xs: [0.08, 0.22, 0.36, 0.48, 0.56, 0.68, 0.82, 0.9, 0.96] },
-    ];
+  function buildClockworkPoints() {
+    const points = [];
+
+    addPatternGear(points, 0.28, 0.44, 0.115, 0.186, 24, 0.1);
+    addPatternGear(points, 0.72, 0.44, 0.115, 0.186, 24, 0.4);
+    addPatternGear(points, 0.5, 0.7, 0.095, 0.154, 20, 0.2);
+    addPatternLine(points, 0.2, 0.18, 0.8, 0.18, 14);
+    addPatternLine(points, 0.2, 0.93, 0.8, 0.93, 14);
+
+    return points;
   }
 
-  function buildCitadelRows() {
-    return [
-      { y: 0.14, xs: [0.06, 0.12, 0.24, 0.38, 0.48, 0.56, 0.66, 0.78, 0.83, 0.95] },
-      { y: 0.22, xs: [0.08, 0.2, 0.32, 0.44, 0.52, 0.6, 0.72, 0.78, 0.83, 0.99] },
-      { y: 0.3, xs: [0.12, 0.24, 0.36, 0.44, 0.52, 0.6, 0.68, 0.76, 0.88, 0.98] },
-      { y: 0.38, xs: [0.08, 0.2, 0.32, 0.44, 0.52, 0.6, 0.72, 0.84, 0.9, 0.96] },
-      { y: 0.46, xs: [0.12, 0.24, 0.36, 0.44, 0.52, 0.6, 0.68, 0.76, 0.88, 0.98] },
-      { y: 0.54, xs: [0.08, 0.2, 0.32, 0.44, 0.52, 0.6, 0.72, 0.84, 0.9, 0.96] },
-      { y: 0.62, xs: [0.06, 0.12, 0.24, 0.36, 0.46, 0.54, 0.64, 0.76, 0.88, 0.98] },
-      { y: 0.7, xs: [0.08, 0.2, 0.32, 0.44, 0.56, 0.68, 0.8, 0.92, 0.98] },
-      { y: 0.78, xs: [0.08, 0.2, 0.32, 0.42, 0.5, 0.58, 0.68, 0.8, 0.92] },
-      { y: 0.86, xs: [0.14, 0.28, 0.4, 0.5, 0.6, 0.72, 0.86, 0.98] },
-    ];
-  }
+  function buildCitadelPoints() {
+    const points = [];
 
-  function getPresetRows(mapId) {
-    if (mapId === "crown") {
-      return buildCrownRows();
-    }
+    addClosedPatternPath(points, [
+      [0.15, 0.32],
+      [0.28, 0.32],
+      [0.28, 0.76],
+      [0.15, 0.76],
+    ], 4);
+    addClosedPatternPath(points, [
+      [0.72, 0.32],
+      [0.85, 0.32],
+      [0.85, 0.76],
+      [0.72, 0.76],
+    ], 4);
+    addPatternArc(points, 0.5, 0.72, 0.12, 0.14, Math.PI, Math.PI * 2, 10);
+    addPatternLine(points, 0.34, 0.52, 0.66, 0.52, 11);
+    addPatternLine(points, 0.28, 0.84, 0.72, 0.84, 15);
+    addPatternLine(points, 0.16, 0.24, 0.27, 0.24, 4);
+    addPatternLine(points, 0.73, 0.24, 0.84, 0.24, 4);
+    addPatternLine(points, 0.38, 0.36, 0.62, 0.36, 6);
+    addAccentPoints(points, [
+      [0.19, 0.46],
+      [0.24, 0.46],
+      [0.76, 0.46],
+      [0.81, 0.46],
+      [0.18, 0.59],
+      [0.23, 0.59],
+      [0.77, 0.59],
+      [0.82, 0.59],
+      [0.47, 0.91],
+      [0.53, 0.91],
+      [0.38, 0.24],
+      [0.62, 0.24],
+      [0.31, 0.28],
+      [0.69, 0.28],
+    ]);
 
-    if (mapId === "heart") {
-      return buildHeartRows();
-    }
-
-    if (mapId === "diamond") {
-      return buildDiamondRows();
-    }
-
-    if (mapId === "orbit") {
-      return buildOrbitRows();
-    }
-
-    if (mapId === "clockwork") {
-      return buildClockworkRows();
-    }
-
-    if (mapId === "citadel") {
-      return buildCitadelRows();
-    }
-
-    return [];
+    return points;
   }
 
   function getPresetPoints(mapId) {
+    if (mapId === "crown") {
+      return buildCrownPoints();
+    }
+
+    if (mapId === "heart") {
+      return buildHeartPoints();
+    }
+
+    if (mapId === "diamond") {
+      return buildDiamondPoints();
+    }
+
+    if (mapId === "orbit") {
+      return buildOrbitPoints();
+    }
+
     if (mapId === "garden") {
       return buildGardenPoints();
     }
 
-    return createPointsFromRows(getPresetRows(mapId));
+    if (mapId === "clockwork") {
+      return buildClockworkPoints();
+    }
+
+    if (mapId === "citadel") {
+      return buildCitadelPoints();
+    }
+
+    return [];
   }
 
   function generateRandomCandidates(boardBounds, random) {
@@ -599,6 +747,7 @@
       seed: request.seed,
       mapId: option.id,
       name: option.name,
+      backgroundPath: option.backgroundPath,
       pegs: decoratePegs(baseLayout, decorationRandom),
       orangeCount: ORANGE_COUNT,
       greenCount: GREEN_COUNT,

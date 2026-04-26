@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const GeppleMap = require("../src/randomMap.js");
 
@@ -81,6 +83,16 @@ runTest("every selectable layout keeps the expected peg counts and color counts"
     assert.equal(getTypeCount(map.pegs, "orange"), 25, option.id + " should have 25 orange pegs");
     assert.equal(getTypeCount(map.pegs, "green"), 2, option.id + " should have 2 green pegs");
     assert.equal(GeppleMap.findPegsAboveAimWindow(boardBounds, map.pegs).length, 0, option.id + " has a peg that is too high");
+  }
+});
+
+runTest("every selectable layout has background art", function () {
+  for (const option of GeppleMap.getMapOptions()) {
+    const backgroundPath = option.backgroundPath;
+    assert.ok(backgroundPath, option.id + " should declare background art");
+
+    const absolutePath = path.join(__dirname, "..", backgroundPath);
+    assert.ok(fs.existsSync(absolutePath), option.id + " background art should exist");
   }
 });
 

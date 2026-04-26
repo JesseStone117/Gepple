@@ -146,6 +146,9 @@
       this.seed = 0;
       this.mapId = "random";
       this.mapName = "Random";
+      this.mapBackgroundPath = "";
+      this.mapBackgroundImage = null;
+      this.backgroundImageCache = {};
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
@@ -260,9 +263,39 @@
       });
 
       this.mapName = map.name;
+      this.setMapBackground(map.backgroundPath);
       this.pegs = map.pegs;
       this.orangeTotal = map.orangeCount;
       this.orangeRemaining = map.orangeCount;
+    }
+
+    setMapBackground(backgroundPath) {
+      this.mapBackgroundPath = backgroundPath || "";
+      this.mapBackgroundImage = this.getBackgroundImage(this.mapBackgroundPath);
+    }
+
+    getBackgroundImage(backgroundPath) {
+      if (!backgroundPath || typeof Image === "undefined") {
+        return null;
+      }
+
+      if (this.backgroundImageCache[backgroundPath]) {
+        return this.backgroundImageCache[backgroundPath];
+      }
+
+      const image = new Image();
+      image.src = this.getVersionedAssetPath(backgroundPath);
+      this.backgroundImageCache[backgroundPath] = image;
+
+      return image;
+    }
+
+    getVersionedAssetPath(path) {
+      if (typeof window !== "undefined" && window.GeppleAssetPath) {
+        return window.GeppleAssetPath(path);
+      }
+
+      return path;
     }
 
     getActivePlayer() {
@@ -1371,6 +1404,10 @@
       context.fillStyle = gradient;
       context.fillRect(0, 0, this.width, this.height);
 
+      if (this.canRenderMapBackground()) {
+        this.renderMapBackground(context);
+      }
+
       for (const bubble of this.backgroundBubbles) {
         context.fillStyle = bubble.tint;
         context.beginPath();
@@ -1388,6 +1425,58 @@
         context.arc(x, y, 1.8, 0, Math.PI * 2);
         context.fill();
       }
+    }
+
+    canRenderMapBackground() {
+      return (
+        this.mapBackgroundImage &&
+        this.mapBackgroundImage.complete &&
+        this.mapBackgroundImage.naturalWidth > 0 &&
+        this.mapBackgroundImage.naturalHeight > 0
+      );
+    }
+
+    renderMapBackground(context) {
+      const image = this.mapBackgroundImage;
+      const canvasRatio = this.width / this.height;
+      const imageRatio = image.naturalWidth / image.naturalHeight;
+      let sourceX = 0;
+      let sourceY = 0;
+      let sourceWidth = image.naturalWidth;
+      let sourceHeight = image.naturalHeight;
+
+      if (imageRatio > canvasRatio) {
+        sourceWidth = image.naturalHeight * canvasRatio;
+        sourceX = (image.naturalWidth - sourceWidth) / 2;
+      }
+
+      if (imageRatio < canvasRatio) {
+        sourceHeight = image.naturalWidth / canvasRatio;
+        sourceY = (image.naturalHeight - sourceHeight) / 2;
+      }
+
+      context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, this.width, this.height);
+      this.renderBackgroundReadabilityOverlay(context);
+    }
+
+    renderBackgroundReadabilityOverlay(context) {
+      const centerShade = context.createRadialGradient(
+        this.boardBounds.centerX,
+        this.height * 0.5,
+        this.width * 0.08,
+        this.boardBounds.centerX,
+        this.height * 0.5,
+        this.width * 0.48
+      );
+
+      centerShade.addColorStop(0, "rgba(4, 9, 20, 0.68)");
+      centerShade.addColorStop(0.55, "rgba(4, 9, 20, 0.44)");
+      centerShade.addColorStop(1, "rgba(4, 9, 20, 0.18)");
+
+      context.fillStyle = centerShade;
+      context.fillRect(0, 0, this.width, this.height);
+      context.fillStyle = "rgba(4, 9, 20, 0.2)";
+      context.fillRect(0, 0, this.width, this.height);
     }
 
     renderBoardFrame(context) {
