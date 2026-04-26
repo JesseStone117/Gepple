@@ -27,6 +27,7 @@
   const LAST_ORANGE_CAMERA_SPEED = 1.9;
   const COIN_FLIP_REVEAL_DELAY_MS = 850;
   const COIN_FLIP_START_DELAY_MS = 1250;
+  const GREEN_PEGS_PER_GAME = 2;
   const MOVING_CATCHER_SCORE_BONUS = 5000;
   const SCORE_MULTIPLIER_STEPS = [
     { orangeHits: 0, multiplier: 1 },
@@ -184,6 +185,7 @@
       this.backgroundImageCache = {};
       this.greenRandom = createRandom(1);
       this.activeGreenPegId = null;
+      this.greenPegsRevealed = 0;
       this.roundStartToken = 0;
       this.coinFlipWinnerVisible = false;
       this.roundReason = "";
@@ -281,6 +283,7 @@
       this.mapId = roundOptions && roundOptions.mapId ? roundOptions.mapId : "random";
       this.greenRandom = createRandom(this.seed ^ hashString(this.mapId));
       this.activeGreenPegId = null;
+      this.greenPegsRevealed = 0;
       this.roundReason = "";
       this.winnerIndex = 0;
       this.finalShotWin = false;
@@ -378,6 +381,7 @@
       this.orangeTotal = map.orangeCount;
       this.orangeRemaining = map.orangeCount;
       this.activeGreenPegId = null;
+      this.greenPegsRevealed = 0;
       this.spawnNextGreenPeg();
     }
 
@@ -480,6 +484,12 @@
         return;
       }
 
+      if (this.greenPegsRevealed >= GREEN_PEGS_PER_GAME) {
+        this.clearUntrackedGreenPegs();
+        this.activeGreenPegId = null;
+        return;
+      }
+
       this.clearUntrackedGreenPegs();
 
       const candidates = this.pegs.filter(function findGreenCandidate(peg) {
@@ -497,6 +507,7 @@
       peg.type = "green";
       peg.glow = Math.max(peg.glow, 1);
       this.activeGreenPegId = peg.id;
+      this.greenPegsRevealed += 1;
     }
 
     clearUntrackedGreenPegs() {
